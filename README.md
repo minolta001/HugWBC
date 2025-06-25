@@ -59,7 +59,7 @@ pip isntall -e .
 Then you should first clone this repository to your Ubuntu computer by running:
 
 ```bash
-git clone https://github.com/OpenRobotLab/HugWBC.git 
+git clone https://github.com/apexrl/HugWBC.git 
 cd HugWBC/rsl_rl
 pip install -e . 
 ```

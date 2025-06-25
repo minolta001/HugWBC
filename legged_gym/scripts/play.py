@@ -57,7 +57,7 @@ def play(args):
     train_cfg.runner.resume = True
     ppo_runner, train_cfg = task_registry.make_alg_runner(
         env=env, name=args.task, args=args, train_cfg=train_cfg)
-    policy = ppo_runner.get_policy(device=env.device)
+    policy = ppo_runner.get_inference_policy(device=env.device)
 
     cfg_eval = {
         "timesteps": (env_cfg.env.episode_length_s) * 500 + 1,
