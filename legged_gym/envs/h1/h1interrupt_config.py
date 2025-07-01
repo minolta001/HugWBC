@@ -68,24 +68,24 @@ class H1InterruptCfg( H1Cfg ):
         disturb_dim = DISTURB_DIM  
         disturb_scale = 2  
         noise_scale = [
-            3.4, # Left Shoulder Pitch -2.6~2.6
-            2.0, # Left Shoulder Roll, -0.3~3.0
-            2.8, # Left Shoulder Yaw,  -1.2~4.3
-            2.6, # Left Shoulder Elbow, -1.2~2.5
-            3.4, # Right Shoulder Pitch, -2.6~2.6
-            2.0, # Right Shoulder Roll, -3.0~0.3
-            2.8, # Right Shoulder Yaw, -4.3~1.2
-            2.6, # Right Shoulder Elbow, -1.2~2.5
+            5.2, # Left Shoulder Pitch -2.6~2.6
+            3.3, # Left Shoulder Roll, -0.3~3.0
+            5.5, # Left Shoulder Yaw,  -1.2~4.3
+            3.7, # Left Shoulder Elbow, -1.2~2.5
+            5.2, # Right Shoulder Pitch, -2.6~2.6
+            3.3, # Right Shoulder Roll, -3.0~0.3
+            5.5, # Right Shoulder Yaw, -4.3~1.2
+            3.7, # Right Shoulder Elbow, -1.2~2.5
         ] # Uniform Distribution Noise for each joint.
         noise_lowerbound = [
-            -1.8,
-            -0.1,
-            -1.0,
-            -1.0,
-            -1.8,
-            -1.9,
-            -1.8,
-            -1.6
+            -2.6,
+            -0.3,
+            -1.2,
+            -1.2,
+            -2.6,
+            -3.0,
+            -4.3,
+            -1.2
         ]
         uniform_scale = 1 
         uniform_noise = True 
