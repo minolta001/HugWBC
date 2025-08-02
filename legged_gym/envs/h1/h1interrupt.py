@@ -161,43 +161,23 @@ class H1InterruptRobot(H1Robot):
 
         if self.cfg.env.observe_gait_commands:
             # update gait commands
-            self.commands[env_ids, 3] = torch_rand_float(self.command_ranges["gait_frequency"][0], self.command_ranges["gait_frequency"][1], (len(env_ids), 1), device=self.device).squeeze(1)  # Frequency
+            self.commands[env_ids, self.command_gait_freq_dim] = torch_rand_float(self.command_ranges["gait_frequency"][0], self.command_ranges["gait_frequency"][1], (len(env_ids), 1), device=self.device).squeeze(1)  # Frequency
             phases = torch.tensor([0, 0.5], device=self.device)
             random_indices = torch.randint(0, len(phases), (len(env_ids), ), device=self.device)
-            self.commands[env_ids, 4] = phases[random_indices] # phases
-            self.commands[env_ids, 5] = 0.5  # durations
-            self.commands[env_ids, 6] = torch_rand_float(self.command_ranges["foot_swing_height"][0], self.command_ranges["foot_swing_height"][1], (len(env_ids), 1), device=self.device).squeeze(1)  # swing_heights
-        
-            # clip swing height for high frequency
-            # high_frequency_env_mask = self.commands[env_ids, 3] > 2.5
-            # self.commands[env_ids[high_frequency_env_mask], 6] = self.commands[env_ids[high_frequency_env_mask], 6].clip(max=0.20)
+            self.commands[env_ids, self.command_gait_phase_dim] = phases[random_indices] # phases
+            self.commands[env_ids, self.command_gait_duration_dim] = 0.5  # durations
+            self.commands[env_ids, self.command_swing_heights_dim] = torch_rand_float(self.command_ranges["foot_swing_height"][0], self.command_ranges["foot_swing_height"][1], (len(env_ids), 1), device=self.device).squeeze(1)  # swing_heights
 
             hopping_mask = self.commands[env_ids, 4] == 0
             walking_mask = self.commands[env_ids, 4] == 0.5
             hopping_env_ids = env_ids[hopping_mask]
             walking_env_ids = env_ids[walking_mask]
 
-            # clip height commands for hopping envs
-            # self.commands[hopping_env_ids, 6] = self.commands[hopping_env_ids, 6].clip(max=0.2)
-        
         if self.cfg.env.observe_body_height:
             self.commands[env_ids, self.command_body_height_dim] = torch_rand_float(self.command_ranges["body_height"][0], self.command_ranges['body_height'][1], (len(env_ids), 1), device=self.device).squeeze(1)
 
-            # if self.cfg.env.observe_gait_commands:
-            #     # clip swing height for low body height
-            #     low_height_env_mask = self.commands[env_ids, self.command_body_height_dim] < -0.15
-            #     self.commands[env_ids[low_height_env_mask], 6] = self.commands[env_ids[low_height_env_mask], 6].clip(max=0.20)
-            
         if self.cfg.env.observe_body_pitch:
             self.commands[env_ids, self.command_body_pitch_dim] = torch_rand_float(self.command_ranges["body_pitch"][0], self.command_ranges['body_pitch'][1], (len(env_ids), 1), device=self.device).squeeze(1)
-            
-            # clip body_pitch for low body height
-            # if self.cfg.env.observe_body_height:
-            #     low_height_env_mask = self.commands[env_ids, self.command_body_height_dim] < -0.2
-            #     self.commands[env_ids[low_height_env_mask], self.command_body_pitch_dim] = self.commands[env_ids[low_height_env_mask], self.command_body_pitch_dim].clip(min=0.15, max=0.3)
-
-            # clip body_pitch for high speed cmd
-            # self.commands[env_ids[high_speed_env_mask], self.command_body_pitch_dim] = self.commands[env_ids[high_speed_env_mask], self.command_body_pitch_dim].clip(max=0.3)
             
             # clip body_pitch for hopping
             if self.cfg.env.observe_gait_commands:
@@ -205,8 +185,6 @@ class H1InterruptRobot(H1Robot):
 
         if self.cfg.env.observe_waist_roll:
             self.commands[env_ids, self.command_waist_roll_dim] = torch_rand_float(self.command_ranges["waist_roll"][0], self.command_ranges['waist_roll'][1], (len(env_ids), 1), device=self.device).squeeze(1)
-            # clip waist_roll for high speed cmd
-            # self.commands[env_ids[high_speed_env_mask], self.command_waist_roll_dim] = self.commands[env_ids[high_speed_env_mask], 9].clip(min=-0.15, max=0.15) 
 
         # reset command sums
         for key in self.command_sums.keys():

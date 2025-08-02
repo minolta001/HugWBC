@@ -117,8 +117,8 @@ class H1InterruptCfgPPO( H1CfgPPO ):
         experiment_name = "h1_interrupt"
         resume = False
         resume_path = None
-        max_iterations = 20000
-        save_interval = 1000
+        max_iterations = 40000
+        save_interval = 2000
     
     class policy( H1CfgPPO.policy ):
         model_name = "MlpAdaptModel"

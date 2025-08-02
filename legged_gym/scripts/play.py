@@ -5,7 +5,6 @@ from legged_gym import LEGGED_GYM_ROOT_DIR
 import isaacgym
 from legged_gym.envs import *
 from legged_gym.utils import get_args, task_registry, update_class_from_dict, export_policy_as_jit
-from legged_gym.utils.custom_eval import CustomEval
 from isaacgym import gymapi
 import numpy as np
 import torch
@@ -81,7 +80,7 @@ def play(args):
     timesteps = env_cfg.env.episode_length_s * 500 + 1
     for timestep in tqdm.tqdm(range(timesteps)):
         with torch.inference_mode():
-            actions = policy.act_inference(obs, privileged_obs=critic_obs)
+            actions, _ = policy.act_inference(obs, privileged_obs=critic_obs)
 
             obs, critic_obs, _, _, _ = env.step(actions)
             look_at = np.array(env.root_states[track_index, :3].cpu(), dtype=np.float64)
