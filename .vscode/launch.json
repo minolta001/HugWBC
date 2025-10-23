@@ -1,0 +1,20 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "python": "/home/lichen2204/miniconda3/envs/hugwbc/bin/python",
+            "name": "Eval",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/lichen2204/Genesis_baseline/HugWBC/legged_gym/scripts/play.py",
+            "console": "integratedTerminal",
+            "cwd":"/home/lichen2204/Genesis_baseline/HugWBC",
+            "args": [
+                "--task=h1int"
+            ]
+        }
+    ]
+}
