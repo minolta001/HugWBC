@@ -96,33 +96,91 @@ JointID = {
         # "RightWristPitch": 27,  # NOTE: INVALID for g1 23dof
         # "RightWristYaw": 28,    # NOTE: INVALID for g1 23dof
     },
+
+    "h1-2":{
+        # left leg
+        'left_hip_yaw_joint': 0, 
+        'left_hip_pitch_joint': 1, 
+        'left_hip_roll_joint': 2,
+        'left_knee_joint':3,
+        'left_ankle_pitch_joint':4, 
+        'left_ankle_roll_joint':5, 
+        # right leg
+        'right_hip_yaw_joint': 6, 
+        'right_hip_pitch_joint': 7, 
+        'right_hip_roll_joint': 8, 
+        'right_knee_joint': 9, 
+        'right_ankle_pitch_joint': 10,
+        'right_ankle_roll_joint': 11,
+        # torso
+        'torso_joint': 12, 
+        # left upper body
+        'left_shoulder_pitch_joint': 13,
+        'left_shoulder_roll_joint': 14,
+        'left_shoulder_yaw_joint': 15,
+        'left_elbow_pitch_joint': 16,
+        'left_elbow_roll_joint': 17,
+        'left_wrist_pitch_joint': 18,
+        'left_wrist_yaw_joint': 19,
+        # right upper body
+        'right_shoulder_pitch_joint': 20, 
+        'right_shoulder_roll_joint': 21, 
+        'right_shoulder_yaw_joint': 22, 
+        'right_elbow_pitch_joint': 23, 
+        'right_elbow_roll_joint': 24, 
+        'right_wrist_pitch_joint': 25, 
+        'right_wrist_yaw_joint': 26,
+    },
 }
 
 class LowStateMsgHandler:
-    def __init__(self, cfg, freq=1000):
-        self.cfg = cfg
-        self.update_interval = 1.0 / freq
-        self.robot_name = cfg.robot_args.morph_args.file.split("/")[2].split("_")[-1]
-        self.dof_names = cfg.robot_args.dof_names
-        self.num_dof = len(self.dof_names)
-        self.dof_index = [JointID[self.robot_name][name] for name in self.dof_names]
+    def __init__(self, cfg=None, freq=1000):
+        if cfg != None:     # for robots that have been registered
+            self.cfg = cfg
+            self.update_interval = 1.0 / freq
+            self.robot_name = cfg.robot_args.morph_args.file.split("/")[2].split("_")[-1]
+            self.dof_names = cfg.robot_args.dof_names
+            self.num_dof = len(self.dof_names)
+            self.dof_index = [JointID[self.robot_name][name] for name in self.dof_names]
 
-        self.msg = None
-        self.msg_received = False
+            self.msg = None
+            self.msg_received = False
 
-        # robot
-        self.quat = np.zeros(4)
-        self.ang_vel = np.zeros(3)
-        self.joint_pos = np.zeros(self.num_dof)
-        self.joint_vel = np.zeros(self.num_dof)
-        self.torque = np.zeros(self.num_dof)
-        self.temperature = np.zeros(self.num_dof)
-        if self.robot_name == "go2":
-            self.num_full_dof = 12
-            self.full_joint_pos = np.zeros(12)
-        if self.robot_name == "g1":
-            self.num_full_dof = 29
-            self.full_joint_pos = np.zeros(29)
+            # robot
+            self.quat = np.zeros(4)
+            self.ang_vel = np.zeros(3)
+            self.joint_pos = np.zeros(self.num_dof)
+            self.joint_vel = np.zeros(self.num_dof)
+            self.torque = np.zeros(self.num_dof)
+            self.temperature = np.zeros(self.num_dof)
+            if self.robot_name == "go2":
+                self.num_full_dof = 12
+                self.full_joint_pos = np.zeros(12)
+            if self.robot_name == "g1":
+                self.num_full_dof = 29
+                self.full_joint_pos = np.zeros(29)
+        
+        else: # for non-registered robot (e.g. h1-2)
+            self.update_interval = 1.0 / freq
+            self.robot_name = "h1-2"
+            # manually define dof-related variables
+            self.dof_names = ['left_hip_yaw_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_yaw_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'left_wrist_pitch_joint', 'left_wrist_yaw_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'right_wrist_pitch_joint', 'right_wrist_yaw_joint'] # 27 joints
+            self.num_dof = len(self.dof_names)
+            self.dof_index = [JointID[self.robot_name][name] for name in self.dof_names]
+
+            self.msg = None
+            self.msg_received = False
+
+            # robot
+            self.quat = np.zeros(4)
+            self.ang_vel = np.zeros(3)
+            self.joint_pos = np.zeros(self.num_dof)
+            self.joint_vel = np.zeros(self.num_dof)
+            self.torque = np.zeros(self.num_dof)
+            self.temperature = np.zeros(self.num_dof)
+            if self.robot_name == "h1-2":
+                self.num_full_dof = 27
+                self.full_joint_pos = np.zeros(self.num_full_dof)
 
         # button
         self.L1 = 0
@@ -158,6 +216,10 @@ class LowStateMsgHandler:
         elif self.robot_name == "g1":
             self.robot_lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_hg)
             self.robot_lowstate_subscriber.Init(self.LowStateHandler_hg, 10)
+        elif self.robot_name == "h1-2":
+            self.robot_lowstate_subscriber = ChannelSubscriber("rt/lowstate", LowState_hg)
+            self.robot_lowstate_subscriber.Init(self.LowStateHandler_hg, 10)
+      
         while not self.msg_received:
             print("Waiting for Low State Message...")
             time.sleep(0.1)

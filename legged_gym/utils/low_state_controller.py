@@ -22,32 +22,120 @@ from unitree_sdk2py.go2.sport.sport_client import SportClient
 from .low_state_handler import LowStateMsgHandler, JointID
 
 class LowStateCmdHandler(LowStateMsgHandler):
-    def __init__(self, cfg, freq=1000):
+    def __init__(self, cfg=None, freq=1000):
         super().__init__(cfg, freq)
 
-        kp_groups = self.cfg.robot_args.dof_kp
-        self.kp = [kp_groups[self.group_from_name(name, kp_groups.keys())] for name in self.dof_names]
+        if cfg != None: # for registered robot
+            kp_groups = self.cfg.robot_args.dof_kp
+            self.kp = [kp_groups[self.group_from_name(name, kp_groups.keys())] for name in self.dof_names]
 
-        kd_groups = self.cfg.robot_args.dof_kd
-        self.kd = [kd_groups[self.group_from_name(name, kd_groups.keys())] for name in self.dof_names]
+            kd_groups = self.cfg.robot_args.dof_kd
+            self.kd = [kd_groups[self.group_from_name(name, kd_groups.keys())] for name in self.dof_names]
 
-        self.default_pos = np.array([self.cfg.robot_args.default_dof[name] for name in self.dof_names])
-        if "reset_joint_angles" in vars(self.cfg.robot_args).keys():
-            self.reset_pos = np.array([self.cfg.robot_args.reset_joint_angles[name] for name in self.dof_names])
-            self.target_pos = np.array([self.cfg.robot_args.reset_joint_angles[name] for name in self.dof_names])
-        else:
-            self.reset_pos = np.array([self.cfg.robot_args.default_dof[name] for name in self.dof_names])
-            self.target_pos = np.array([self.cfg.robot_args.default_dof[name] for name in self.dof_names])
-        self.full_default_pos = np.zeros(self.num_full_dof)
-        for i in range(self.num_dof):
-            self.full_default_pos[self.dof_index[i]] = self.default_pos[i]
-            self.full_joint_pos[self.dof_index[i]] = self.reset_pos[i]
+            self.default_pos = np.array([self.cfg.robot_args.default_dof[name] for name in self.dof_names])
+            if "reset_joint_angles" in vars(self.cfg.robot_args).keys():
+                self.reset_pos = np.array([self.cfg.robot_args.reset_joint_angles[name] for name in self.dof_names])
+                self.target_pos = np.array([self.cfg.robot_args.reset_joint_angles[name] for name in self.dof_names])
+            else:
+                self.reset_pos = np.array([self.cfg.robot_args.default_dof[name] for name in self.dof_names])
+                self.target_pos = np.array([self.cfg.robot_args.default_dof[name] for name in self.dof_names])
+            self.full_default_pos = np.zeros(self.num_full_dof)
+            for i in range(self.num_dof):
+                self.full_default_pos[self.dof_index[i]] = self.default_pos[i]
+                self.full_joint_pos[self.dof_index[i]] = self.reset_pos[i]
 
-        if self.robot_name == "go2":
-            self.low_cmd = unitree_go_msg_dds__LowCmd_()
-        elif self.robot_name == "g1" or "h1-2":
-            self.low_cmd = unitree_hg_msg_dds__LowCmd_()
-        
+            if self.robot_name == "go2":
+                self.low_cmd = unitree_go_msg_dds__LowCmd_()
+            elif self.robot_name == "g1":
+                self.low_cmd = unitree_hg_msg_dds__LowCmd_()
+
+        else: # for non-registered robot (e.g. h1-2)
+            # manually define kp, kd tables
+            kp_groups = {
+                'ankle_pitch': 40,
+                'ankle_roll': 40,
+                'elbow_pitch': 100,
+                'elbow_roll': 100,
+                'hip_pitch': 200,
+                'hip_roll': 200,
+                'hip_yaw': 200,
+                'knee': 300,
+                'shoulder_pitch': 100,
+                'shoulder_roll': 100,
+                'shoulder_yaw': 100,
+                'torso': 300,
+                'wrist_pitch': 100,
+                'wrist_yaw': 100
+                }
+
+            self.kp = [kp_groups[self.group_from_name(name, kp_groups.keys())] for name in self.dof_names]
+            
+            kd_groups = self.cfg.robot_args.dof_kd
+
+            kd_groups = {
+                'ankle_pitch': 2,
+                'ankle_roll': 2,
+                'elbow_pitch': 2,
+                'elbow_roll': 2,
+                'hip_pitch': 5,
+                'hip_roll': 5,
+                'hip_yaw': 5,
+                'knee': 6,
+                'shoulder_pitch': 2,
+                'shoulder_roll': 2,
+                'shoulder_yaw': 2,
+                'torso': 6,
+                'wrist_pitch': 2,
+                'wrist_yaw': 2
+                }
+
+            self.kd = [kd_groups[self.group_from_name(name, kd_groups.keys())] for name in self.dof_names]
+
+
+            # manually define default dof positions
+            self.default_dof = {
+                'left_hip_yaw_joint': 0.0,
+                'left_hip_pitch_joint': -0.4,
+                'left_hip_roll_joint': 0.0,
+                'left_knee_joint': 0.8,
+                'left_ankle_pitch_joint': -0.4,
+                'left_ankle_roll_joint': 0.0,
+                'right_hip_yaw_joint': 0.0,
+                'right_hip_pitch_joint': -0.4,
+                'right_hip_roll_joint': 0.0,
+                'right_knee_joint': 0.8,
+                'right_ankle_pitch_joint': -0.4,
+                'right_ankle_roll_joint': 0.0,
+                'torso_joint': 0.0,
+                'left_shoulder_pitch_joint': 0.0,
+                'left_shoulder_roll_joint': 0.0,
+                'left_shoulder_yaw_joint': 0.0,
+                'left_elbow_pitch_joint': 0.0,
+                'left_elbow_roll_joint': 0.0,
+                'left_wrist_pitch_joint': 0.0,
+                'left_wrist_yaw_joint': 0.0,
+                'right_shoulder_pitch_joint': 0.0,
+                'right_shoulder_roll_joint': 0.0,
+                'right_shoulder_yaw_joint': 0.0,
+                'right_elbow_pitch_joint': 0.0,
+                'right_elbow_roll_joint': 0.0,
+                'right_wrist_pitch_joint': 0.0,
+                'right_wrist_yaw_joint': 0.0
+            }
+
+            self.default_pos = np.array([self.default_dof[name] for name in self.dof_names])
+
+            self.reset_pos = np.array([self.default_dof[name] for name in self.dof_names])
+            self.target_pos = np.array([self.default_dof[name] for name in self.dof_names])
+            self.full_default_pos = np.zeros(self.num_full_dof)
+
+            for i in range(self.num_dof):
+                self.full_default_pos[self.dof_index[i]] = self.default_pos[i]
+                self.full_joint_pos[self.dof_index[i]] = self.reset_pos[i]
+
+            if self.robot_name == "h1-2":
+                self.low_cmd = unitree_hg_msg_dds__LowCmd_()
+
         self.emergency_stop = False
 
         # thread handling
@@ -131,6 +219,32 @@ class LowStateCmdHandler(LowStateMsgHandler):
                 self.low_cmd.motor_cmd[i].dq = 0
                 self.low_cmd.motor_cmd[i].kd = Kd[i]
                 self.low_cmd.motor_cmd[i].tau = 0. 
+
+        if self.robot_name == "h1-2":
+            Kp = [
+                200., 200., 200.,   # left hip
+                300., 40., 40.,     # left knee/ankle
+                200., 200., 200.,   # right hip
+                300., 40., 40.,     # right knee/ankle
+                200.,               # torso
+                40., 40., 18.,      # left shoulder
+                18., 18.,           # left elbow
+                10., 10.,           # left wrist (new → use conservative defaults)
+                40., 40., 18.,      # right shoulder
+                18., 18.,           # right elbow
+                10., 10.            # right wrist (new → use conservative defaults)
+            ]
+            Kd = self.kd
+            self.low_cmd.mode_pr = 0  # 0 for pitch roll, 1 for A B
+            self.low_cmd.mode_machine = self.msg.mode_machine
+            for i in range(self.num_dof):
+                self.low_cmd.motor_cmd[i].mode = 1  # 1:Enable, 0:Disable
+                self.low_cmd.motor_cmd[i].q = self.full_initial_pos[i]
+                self.low_cmd.motor_cmd[i].kp = Kp[i]
+                self.low_cmd.motor_cmd[i].dq = 0
+                self.low_cmd.motor_cmd[i].kd = Kd[i]
+                self.low_cmd.motor_cmd[i].tau = 0.
+
         elif self.robot_name == "go2":
             # self.low_cmd.head[0]=0xFE
             # self.low_cmd.head[1]=0xEF
@@ -161,17 +275,27 @@ class LowStateCmdHandler(LowStateMsgHandler):
                 self.low_cmd.motor_cmd[i].dq = 0
                 self.low_cmd.motor_cmd[i].kd = 5
                 self.low_cmd.motor_cmd[i].tau = 0
+        elif self.robot_name == "h1-2":
+            for i in range(self.num_dof):
+                self.low_cmd.motor_cmd[i].mode = 0
+                self.low_cmd.motor_cmd[i].q= 0
+                self.low_cmd.motor_cmd[i].kp = 0
+                self.low_cmd.motor_cmd[i].dq = 0
+                self.low_cmd.motor_cmd[i].kd = 5
+                self.low_cmd.motor_cmd[i].tau = 0 
+
 
     def set_cmd(self):
         for i in range(self.num_dof):
             self.low_cmd.motor_cmd[self.dof_index[i]].q = self.target_pos[i]
             self.low_cmd.motor_cmd[self.dof_index[i]].dq = 0
             self.low_cmd.motor_cmd[self.dof_index[i]].kp = self.kp[i]
-            self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] * 3
+            # NOTE: Why kd times 3?
+            #self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] * 3
+            self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i]
             self.low_cmd.motor_cmd[self.dof_index[i]].tau = 0
 
     def LowCmdWrite(self):
-
         if self.L2 and self.R2:
             self.emrgence_stop()
 
