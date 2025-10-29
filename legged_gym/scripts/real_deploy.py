@@ -13,6 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 import yaml
 from isaacgym import gymapi
 from utils.low_state_controller import LowStateCmdHandler
+from utils.low_state_handler import JointID
 import time
 from transforms3d import quaternions
 from legged_gym.legged_utils.observation_buffer import ObservationBuffer
@@ -32,6 +33,11 @@ NUM_PARTIAL_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT
 NUM_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT + PRIVILEGED_DIM + TERRAIN_DIM
     
 
+def h1Action_to_h12Action():
+    raise KeyError
+
+def h12DOF_to_h1DOF(joint_pos, default_joint_pos):
+    raise KeyError
 
 def make_observation(handler, commands):
     #NOTE: handler return quaternion in w, x, y, z 
@@ -49,7 +55,8 @@ def make_observation(handler, commands):
 
     # h1 dof-index dict: {'left_ankle_joint': 4, 'left_elbow_joint': 14, 'left_hip_pitch_joint': 2, 'left_hip_roll_joint': 1, 'left_hip_yaw_joint': 0, 'left_knee_joint': 3, 'left_shoulder_pitch_joint': 11, 'left_shoulder_roll_joint': 12, 'left_shoulder_yaw_joint': 13, 'right_ankle_joint': 9, 'right_elbow_joint': 18, 'right_hip_pitch_joint': 7, 'right_hip_roll_joint': 6, 'right_hip_yaw_joint': 5, 'right_knee_joint': 8, 'right_shoulder_pitch_joint': 15, 'right_shoulder_roll_joint': 16, 'right_shoulder_yaw_joint': 17, 'torso_joint': 10}
     '''
-               'left_hip_yaw_joint' : 0.00,   
+    h1
+            'left_hip_yaw_joint' : 0.00,   
            'left_hip_roll_joint' : 0.02,               
            'left_hip_pitch_joint' : -0.4,         
            'left_knee_joint' : 0.8,       
@@ -72,7 +79,10 @@ def make_observation(handler, commands):
     # NOTE: the dof reading from h1-2 should be re-arranged to a dof pose list, following the h1 dof-index dict above
 
 
-    dof_pos = None
+    dof_pos = h12DOF_to_h1DOF(joint_pos=handler.joint_pos, default_joint_pos=default_dof_pos, )
+
+
+
     default_dof_pos = None
     dof_vel = None
     action = None
