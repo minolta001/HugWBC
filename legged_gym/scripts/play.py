@@ -23,12 +23,13 @@ def play(args):
     env_cfg.env.episode_length_s = 100000
 
     env_cfg.terrain.curriculum = False
-    env_cfg.noise.add_noise = True
+    env_cfg.noise.add_noise = False     # was True
     env_cfg.domain_rand.randomize_friction = True
     env_cfg.domain_rand.randomize_load = False
     env_cfg.domain_rand.randomize_gains = False 
     env_cfg.domain_rand.randomize_link_props = False
     env_cfg.domain_rand.randomize_base_mass = False
+    env_cfg.domain_rand.randomize_control_latency = False # was True
 
     env_cfg.commands.resampling_time = 100
     env_cfg.rewards.penalize_curriculum = False
@@ -36,6 +37,7 @@ def play(args):
     env_cfg.terrain.num_rows = 1
     env_cfg.terrain.num_cols = 1
     env_cfg.terrain.max_init_terrain_level = 1
+    env_cfg.terrain.measure_heights = False     # was True
     env_cfg.terrain.selected = True
     env_cfg.terrain.selected_terrain_type = "random_uniform"
     env_cfg.terrain.terrain_kwargs = {  # Dict of arguments for selected terrain
@@ -47,6 +49,8 @@ def play(args):
                 "downsampled_scale": 0.2
             },
     }
+    env_cfg.env.has_privileged_info=False       # privileged_info was allowed (True)
+
 
     # prepare     # planeenvironment
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)

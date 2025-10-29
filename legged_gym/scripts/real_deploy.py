@@ -14,9 +14,75 @@ import yaml
 from isaacgym import gymapi
 from utils.low_state_controller import LowStateCmdHandler
 import time
-from transfromer3d import quaternions
+from transforms3d import quaternions
+from legged_gym.legged_utils.observation_buffer import ObservationBuffer
+from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg
 
-def make_observation(args, commands):
+PROPRIOCEPTION_DIM = 63
+INTERRUPT_IN_CMD = True    
+NOISE_IN_PRIVILEGE = False 
+EXECUTE_IN_PRIVILEGE = False 
+CMD_DIM = 3 + 4 + 1 + 2 + INTERRUPT_IN_CMD 
+TERRAIN_DIM = 221 
+PRIVILEGED_DIM = 3 + 1 + 1 + 6 + 11 + 2 + 9 * NOISE_IN_PRIVILEGE + 19 * EXECUTE_IN_PRIVILEGE 
+CLOCK_INPUT = 2
+DISTURB_DIM = 8
+
+NUM_PARTIAL_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT
+NUM_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT + PRIVILEGED_DIM + TERRAIN_DIM
+    
+
+
+def make_observation(handler, commands):
+    #NOTE: handler return quaternion in w, x, y, z 
+
+    gravity_vector = np.array([0, 0, -1])
+
+    base_ang_vel = handler.ang_vel * LeggedRobotCfg.normalization.obs_scales.ang_vel     # tensor([[ 0.0148,  0.8147, -0.6067]], device='cuda:0')
+
+    # NOTE: probably wrong. Need to recheck this part
+    projected_gravity = quaternions.rotate_vector(
+        v=gravity_vector,
+        q=quaternions.qinverse(handler.quat)
+    )    # tensor([[ 1.2025e-02,  2.3940e-04, -9.9993e-01]], device='cuda:0')
+
+
+    # h1 dof-index dict: {'left_ankle_joint': 4, 'left_elbow_joint': 14, 'left_hip_pitch_joint': 2, 'left_hip_roll_joint': 1, 'left_hip_yaw_joint': 0, 'left_knee_joint': 3, 'left_shoulder_pitch_joint': 11, 'left_shoulder_roll_joint': 12, 'left_shoulder_yaw_joint': 13, 'right_ankle_joint': 9, 'right_elbow_joint': 18, 'right_hip_pitch_joint': 7, 'right_hip_roll_joint': 6, 'right_hip_yaw_joint': 5, 'right_knee_joint': 8, 'right_shoulder_pitch_joint': 15, 'right_shoulder_roll_joint': 16, 'right_shoulder_yaw_joint': 17, 'torso_joint': 10}
+    '''
+               'left_hip_yaw_joint' : 0.00,   
+           'left_hip_roll_joint' : 0.02,               
+           'left_hip_pitch_joint' : -0.4,         
+           'left_knee_joint' : 0.8,       
+           'left_ankle_joint' : -0.4,     
+           'right_hip_yaw_joint' : -0.00, 
+           'right_hip_roll_joint' : -0.02, 
+           'right_hip_pitch_joint' : -0.4,                                       
+           'right_knee_joint' : 0.8,                                             
+           'right_ankle_joint' : -0.4,                                     
+           'torso_joint' : 0., 
+           'left_shoulder_pitch_joint' : 0., 
+           'left_shoulder_roll_joint' : 0, 
+           'left_shoulder_yaw_joint' : 0.,
+           'left_elbow_joint'  : 0.,
+           'right_shoulder_pitch_joint' : 0.,
+           'right_shoulder_roll_joint' : 0.0,
+           'right_shoulder_yaw_joint' : 0.,
+           'right_elbow_joint' : 0.,
+    '''
+    # NOTE: the dof reading from h1-2 should be re-arranged to a dof pose list, following the h1 dof-index dict above
+
+
+    dof_pos = None
+    default_dof_pos = None
+    dof_vel = None
+    action = None
+    commands 
+    clock_input = None
+    
+    
+    
+
+
     return KeyError
 
 
@@ -30,7 +96,7 @@ def deploy(args):
     env_cfg.env.episode_projectedlength_s = 100000 
 
     env_cfg.terrain.curriculum = False
-    env_cfg.noise.add_noise = True
+    env_cfg.noise.add_noise = False
     env_cfg.domain_rand.randomize_friction = True
     env_cfg.domain_rand.randomize_load = False
     env_cfg.domain_rand.randomize_gains = False 
@@ -45,6 +111,8 @@ def deploy(args):
     env_cfg.terrain.max_init_terrain_level = 1
     env_cfg.terrain.selected = True
     env_cfg.terrain.selected_terrain_type = "random_uniform"
+
+    env_cfg.terrain.measure_heights = False     # was True
     env_cfg.terrain.terrain_kwargs = {  # Dict of arguments for selected terrain
         "random_uniform":
             {
@@ -92,6 +160,17 @@ def deploy(args):
     # load default and reset dof pos
     default_dof_pos = cmd_handler.default_pos.copy()
     reset_dof_pos = cmd_handler.reset_pos.copy()
+
+    # initialize observation buffer
+    full_obs_buf = torch.zeros(1, NUM_OBS, device=env.device, dtype=torch.float)
+    env_idxs = torch.tensor([0], device='cuda:0')
+    obs_buf_history = ObservationBuffer(num_envs=1, 
+                                        num_obs=NUM_PARTIAL_OBS, 
+                                        include_history_steps=5,
+                                        device=env.device,
+                                        zero_pad=False)
+    # reset buffer
+    obs_buf_history.reset(env_idxs, full_obs_buf[:, :NUM_PARTIAL_OBS])
 
     try:
         while not cmd_handler.Start:

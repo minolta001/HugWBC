@@ -1688,13 +1688,16 @@ class H1Robot(BaseTask):
 
         return  reward / 2
     
-    def _reward_feet_clearance_cmd_linear(self):   
-        phases = 1 - torch.abs(1.0 - torch.clip((self.foot_indices * 2.0) - 1.0, 0.0, 1.0) * 2.0)
-        foot_height = (self.foot_pos_world[:, :, 2]).view(self.num_envs, -1) - self.measured_foot_scan.mean(-1)
-        target_height = self.commands[:, 6].unsqueeze(1) * phases + 0.07 
-        rew_foot_clearance = torch.square(target_height - foot_height) * (1 - self.desired_contact_states)
-        
-        return torch.sum(rew_foot_clearance, dim=1).clip(max=0.1)
+    def _reward_feet_clearance_cmd_linear(self):
+        if self.cfg.terrain.measure_heights:
+            phases = 1 - torch.abs(1.0 - torch.clip((self.foot_indices * 2.0) - 1.0, 0.0, 1.0) * 2.0)
+            foot_height = (self.foot_pos_world[:, :, 2]).view(self.num_envs, -1) - self.measured_foot_scan.mean(-1)
+            target_height = self.commands[:, 6].unsqueeze(1) * phases + 0.07 
+            rew_foot_clearance = torch.square(target_height - foot_height) * (1 - self.desired_contact_states)
+            
+            return torch.sum(rew_foot_clearance, dim=1).clip(max=0.1)
+        else:
+            return torch.tensor(0)
 
     def _reward_feet_clearance_cmd_polynomial(self):   
         phases = torch.clip(0.75 - torch.abs(self.foot_indices - 0.75), 0.0, 1.0)
