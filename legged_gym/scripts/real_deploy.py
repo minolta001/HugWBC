@@ -13,6 +13,12 @@ from torch.utils.tensorboard import SummaryWriter
 import yaml
 from isaacgym import gymapi
 from utils.low_state_controller import LowStateCmdHandler
+import time
+from transfromer3d import quaternions
+
+def make_observation(args, commands):
+    return KeyError
+
 
 def deploy(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
@@ -61,15 +67,11 @@ def deploy(args):
         env=env, name=args.task, args=args, train_cfg=train_cfg)
     policy = ppo_runner.get_inference_policy(device=env.device)
 
-  
     _, _ = env.reset()
 
-    # initialize 
-    actions = torch.zeros(env.num_envs, env.num_actions, dtype=torch.float, device=env.device)
-
-    obs, critic_obs, _, _, _ = env.step(torch.zeros(
-            env.num_envs, env.num_actions, dtype=torch.float, device=env.device))
-    
+    # initialize action, obs and commands
+    last_action = torch.zeros(env.num_envs, env.num_actions, dtype=torch.float, device=env.device)
+    obs, critic_obs, _, _, _ = env.step(last_action)
     commands = np.array([
         0,
         0,
@@ -81,22 +83,56 @@ def deploy(args):
         0,
         0
     ])
-    commands[:, 0] = 0
-    commands[:, 1] = 0
-    commands[:, 2] = 0
-    commands[:, 3] = 2.0
-    commands[:, 4] = 0.5
-    commands[:, 5] = 0.5
-    commands[:, 6] = 0.2
-    commands[:, 7] = -0.0
-    commands[:, 8] = 0.0
-    commands[:, 9] = 0.0
- 
-    cmd_handler = LowStateCmdHandler(cfg)
-    
+
+    # initialize command handler
+    cmd_handler = LowStateCmdHandler(cfg=None)
+    cmd_handler.init()
+    cmd_handler.start()
+
+    # load default and reset dof pos
+    default_dof_pos = cmd_handler.default_pos.copy()
+    reset_dof_pos = cmd_handler.reset_pos.copy()
 
     try:
-        while not 
+        while not cmd_handler.Start:
+            time.sleep(0.1)
+
+        print("Start runing policy")
+        last_update_time = time.time()
+
+        step_id = 0
+
+        while not cmd_handler.emergency_stop:
+            if time.time() - last_update_time < 0.02:
+                time.sleep(0.001)
+                continue
+            last_update_time = time.time()
+
+            projected_gravity = quaternions.rotate_vector(
+                v=np.array([0, 0, -1]),
+                q=quaternions.qinverse(cmd_handler.quat),
+            )
+
+            # make commands, refer play.py for more details
+            commands[0] = 0
+            commands[1] = 0
+            commands[2] = 0
+            commands[3] = 2.0
+            commands[4] = 0.5
+            commands[5] = 0.5
+            commands[6] = 0.2
+            commands[7] = -0.0
+            commands[8] = 0.0
+            commands[9] = 0.0
+            
+            obs = make_observation(args=None, commands=commands)
+            action = policy.act_inference(obs, privileged_obs=None)
+
+            # TODO: action handler before sending action to cmd_handler?
+            
+ 
+    except KeyboardInterrupt:
+        pass
 
 
 
@@ -104,7 +140,7 @@ def deploy(args):
 
     for timestep in tqdm.tqdm(range(timesteps)):
         with torch.inference_mode():
-            actions, _ = policy.act_inference(obs, privileged_obs=critic_obs)
+            actions, _ = policy.act_inference(obs, privileged_obs=None)
 
             obs, critic_obs, _, _, _ = env.step(actions)
 
