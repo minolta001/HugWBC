@@ -31,13 +31,71 @@ DISTURB_DIM = 8
 
 NUM_PARTIAL_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT
 NUM_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT + PRIVILEGED_DIM + TERRAIN_DIM
-    
+
+H1_DOF_MAP = {
+    'left_ankle_joint': 4, 'left_elbow_joint': 14, 'left_hip_pitch_joint': 2,
+    'left_hip_roll_joint': 1, 'left_hip_yaw_joint': 0, 'left_knee_joint': 3,
+    'left_shoulder_pitch_joint': 11, 'left_shoulder_roll_joint': 12,
+    'left_shoulder_yaw_joint': 13, 'right_ankle_joint': 9, 'right_elbow_joint': 18,
+    'right_hip_pitch_joint': 7, 'right_hip_roll_joint': 6,
+    'right_hip_yaw_joint': 5, 'right_knee_joint': 8, 'right_shoulder_pitch_joint': 15,
+    'right_shoulder_roll_joint': 16, 'right_shoulder_yaw_joint': 17, 'torso_joint': 10
+}
+
+H1_2_DOF_NAMES = [
+    'left_hip_yaw_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint',
+    'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint',
+    'right_hip_yaw_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint',
+    'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint',
+    'torso_joint',
+    'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint',
+    'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'left_wrist_pitch_joint',
+    'left_wrist_yaw_joint',
+    'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint',
+    'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'right_wrist_pitch_joint',
+    'right_wrist_yaw_joint'
+]
+
+def dof_pos_convert_h1_2_to_h1(h1_2_dof_reading: np.ndarray) -> np.ndarray:
+    """
+    Converts DOF readings from H1-2 format to H1 format with corrected logic.
+
+    Args:
+        h1_2_dof_reading: A numpy array of shape (27,) with H1-2 DOF values.
+
+    Returns:
+        A numpy array of shape (19,) with H1 DOF values.
+    """
+    if h1_2_dof_reading.shape[0] != len(H1_2_DOF_NAMES):
+        raise ValueError(f"Input must have {len(H1_2_DOF_NAMES)} elements, but got {h1_2_dof_reading.shape[0]}")
+
+    # Initialize the output array for H1.
+    h1_dof_reading = np.zeros(len(H1_DOF_MAP))
+
+    # Iterate through the H1-2 joints by their index and name.
+    for h1_2_idx, h1_2_name in enumerate(H1_2_DOF_NAMES):
+        # By default, the name we look for in the H1 map is the H1-2 name itself.
+        key_to_check = h1_2_name
+        
+        # **Corrected Logic**: Only simplify the name for ankle and elbow joints.
+        if "ankle_pitch_joint" in h1_2_name or "elbow_pitch_joint" in h1_2_name:
+            key_to_check = h1_2_name.replace("_pitch", "")
+        
+        # Check if the (potentially modified) joint name exists in the target H1 map.
+        if key_to_check in H1_DOF_MAP:
+            # Get the target index for the H1 robot.
+            h1_idx = H1_DOF_MAP[key_to_check]
+            # Place the value from the H1-2 reading into the correct H1 position.
+            h1_dof_reading[h1_idx] = h1_2_dof_reading[h1_2_idx]
+        else:
+            print("DOF convert met error!")
+            raise KeyError
+
+    return h1_dof_reading
 
 def h1Action_to_h12Action():
     raise KeyError
 
-def h12DOF_to_h1DOF(joint_pos, default_joint_pos):
-    raise KeyError
 
 def make_observation(handler, commands):
     #NOTE: handler return quaternion in w, x, y, z 
@@ -55,7 +113,7 @@ def make_observation(handler, commands):
 
     # h1 dof-index dict: {'left_ankle_joint': 4, 'left_elbow_joint': 14, 'left_hip_pitch_joint': 2, 'left_hip_roll_joint': 1, 'left_hip_yaw_joint': 0, 'left_knee_joint': 3, 'left_shoulder_pitch_joint': 11, 'left_shoulder_roll_joint': 12, 'left_shoulder_yaw_joint': 13, 'right_ankle_joint': 9, 'right_elbow_joint': 18, 'right_hip_pitch_joint': 7, 'right_hip_roll_joint': 6, 'right_hip_yaw_joint': 5, 'right_knee_joint': 8, 'right_shoulder_pitch_joint': 15, 'right_shoulder_roll_joint': 16, 'right_shoulder_yaw_joint': 17, 'torso_joint': 10}
     '''
-    h1
+    h1 default dof pos
             'left_hip_yaw_joint' : 0.00,   
            'left_hip_roll_joint' : 0.02,               
            'left_hip_pitch_joint' : -0.4,         
@@ -76,14 +134,42 @@ def make_observation(handler, commands):
            'right_shoulder_yaw_joint' : 0.,
            'right_elbow_joint' : 0.,
     '''
+    '''
+    h1-2 default dof pos
+            'left_hip_yaw_joint': 0.0,
+            'left_hip_pitch_joint': -0.4,
+            'left_hip_roll_joint': 0.02,
+            'left_knee_joint': 0.8,
+            'left_ankle_pitch_joint': -0.4,
+            'left_ankle_roll_joint': 0.0,
+            'right_hip_yaw_joint': 0.0,
+            'right_hip_pitch_joint': -0.4,
+            'right_hip_roll_joint': -0.02,
+            'right_knee_joint': 0.8,
+            'right_ankle_pitch_joint': -0.4,
+            'right_ankle_roll_joint': 0.0,
+            'torso_joint': 0.0,
+            'left_shoulder_pitch_joint': 0.0,
+            'left_shoulder_roll_joint': 0.0,
+            'left_shoulder_yaw_joint': 0.0,
+            'left_elbow_pitch_joint': 0.0,
+            'left_elbow_roll_joint': 0.0,
+            'left_wrist_pitch_joint': 0.0,
+            'left_wrist_yaw_joint': 0.0,
+            'right_shoulder_pitch_joint': 0.0,
+            'right_shoulder_roll_joint': 0.0,
+            'right_shoulder_yaw_joint': 0.0,
+            'right_elbow_pitch_joint': 0.0,
+            'right_elbow_roll_joint': 0.0,
+            'right_wrist_pitch_joint': 0.0,
+            'right_wrist_yaw_joint': 0.0
+    '''
     # NOTE: the dof reading from h1-2 should be re-arranged to a dof pose list, following the h1 dof-index dict above
 
+    default_dof_pos = handler.default_pos
+    tmp_joint_pos = (handler.joint_pos - default_dof_pos) * 1.0
+    dof_pos = dof_pos_convert_h1_2_to_h1()
 
-    dof_pos = h12DOF_to_h1DOF(joint_pos=handler.joint_pos, default_joint_pos=default_dof_pos, )
-
-
-
-    default_dof_pos = None
     dof_vel = None
     action = None
     commands 
