@@ -118,8 +118,8 @@ JointID = {
         'left_shoulder_pitch_joint': 13,
         'left_shoulder_roll_joint': 14,
         'left_shoulder_yaw_joint': 15,
-        'left_elbow_pitch_joint': 16,
-        'left_elbow_roll_joint': 17,
+        'left_elbow_pitch_joint': 16, 
+        'left_elbow_roll_joint': 17, 
         'left_wrist_pitch_joint': 18,
         'left_wrist_yaw_joint': 19,
         # right upper body

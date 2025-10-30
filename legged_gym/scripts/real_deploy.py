@@ -32,6 +32,8 @@ DISTURB_DIM = 8
 NUM_PARTIAL_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT
 NUM_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT + PRIVILEGED_DIM + TERRAIN_DIM
 
+h1_commands_scale = torch.tensor([2.0, 2.0, 0.25, 1.0, 1.0, 1.0, 0.15, 2.0, 0.5, 0.5, 1], device='cuda:0', requires_grad=False)
+
 H1_DOF_MAP = {
     'left_ankle_joint': 4, 'left_elbow_joint': 14, 'left_hip_pitch_joint': 2,
     'left_hip_roll_joint': 1, 'left_hip_yaw_joint': 0, 'left_knee_joint': 3,
@@ -138,7 +140,7 @@ def h1Action_to_h12Action():
     raise KeyError
 
 
-def make_observation(handler, commands):
+def make_observation(handler, action, commands):
     #NOTE: handler return quaternion in w, x, y, z 
 
     gravity_vector = np.array([0, 0, -1])
@@ -208,14 +210,20 @@ def make_observation(handler, commands):
     # NOTE: the dof reading from h1-2 should be re-arranged to a dof pose list, following the h1 dof-index dict above
 
     default_dof_pos = handler.default_pos
+    # dof pos 
     tmp_joint_pos = (handler.joint_pos - default_dof_pos) * 1.0
     dof_pos = dof_pos_convert_h1_2_to_h1(h1_2_dof_reading=tmp_joint_pos)
-
+    # dof vel
     tmp_joint_vel = handler.joint_vel * LeggedRobotCfg.normalization.obs_scales.dof_vel
     dof_vel = dof_vel_convert_h1_2_to_h1(h1_2_vel_reading=tmp_joint_vel)
-    action = None
-    commands 
-    clock_input = None
+    # action
+    assert(action.shape == torch.Size([1, 19]))
+    # commands
+    assert(commands.shape == torch.Size([1, 11]))
+    commands = commands * h1_commands_scale
+    # clock inputs
+    clock_inputs = None
+    
     
     
     
@@ -278,17 +286,7 @@ def deploy(args):
     # initialize action, obs and commands
     last_action = torch.zeros(env.num_envs, env.num_actions, dtype=torch.float, device=env.device)
     obs, critic_obs, _, _, _ = env.step(last_action)
-    commands = np.array([
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-    ])
+    commands = torch.zeros(1, 11, dtype=torch.float, device='cuda:0', requires_grad=False)
 
     # initialize command handler
     cmd_handler = LowStateCmdHandler(cfg=None)
