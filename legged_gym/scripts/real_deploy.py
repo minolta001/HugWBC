@@ -58,7 +58,7 @@ H1_2_DOF_NAMES = [
 
 def dof_pos_convert_h1_2_to_h1(h1_2_dof_reading: np.ndarray) -> np.ndarray:
     """
-    Converts DOF readings from H1-2 format to H1 format with corrected logic.
+    Converts DOF position readings from H1-2 format to H1 format with corrected logic.
 
     Args:
         h1_2_dof_reading: A numpy array of shape (27,) with H1-2 DOF values.
@@ -88,10 +88,51 @@ def dof_pos_convert_h1_2_to_h1(h1_2_dof_reading: np.ndarray) -> np.ndarray:
             # Place the value from the H1-2 reading into the correct H1 position.
             h1_dof_reading[h1_idx] = h1_2_dof_reading[h1_2_idx]
         else:
-            print("DOF convert met error!")
+            print("DOF pos convert met error!")
             raise KeyError
 
     return h1_dof_reading
+
+def dof_vel_convert_h1_2_to_h1(h1_2_vel_reading: np.ndarray) -> np.ndarray:
+    """
+    Converts DOF velocity readings from H1-2 format to H1 format.
+    
+    The mapping, filtering, and reordering logic is identical to the
+    DOF position conversion.
+
+    Args:
+        h1_2_vel_reading: A numpy array of shape (27,) with H1-2 DOF velocity values.
+
+    Returns:
+        A numpy array of shape (19,) with H1 DOF velocity values.
+    """
+    if h1_2_vel_reading.shape[0] != len(H1_2_DOF_NAMES):
+        raise ValueError(f"Input must have {len(H1_2_DOF_NAMES)} elements, but got {h1_2_vel_reading.shape[0]}")
+
+    # Initialize the output array for H1.
+    h1_vel_reading = np.zeros(len(H1_DOF_MAP))
+
+    # Iterate through the H1-2 joints by their index and name.
+    for h1_2_idx, h1_2_name in enumerate(H1_2_DOF_NAMES):
+        # By default, the name we look for in the H1 map is the H1-2 name itself.
+        key_to_check = h1_2_name
+        
+        # Only simplify the name for ankle and elbow joints.
+        if "ankle_pitch_joint" in h1_2_name or "elbow_pitch_joint" in h1_2_name:
+            key_to_check = h1_2_name.replace("_pitch", "")
+        
+        # Check if the (potentially modified) joint name exists in the target H1 map.
+        if key_to_check in H1_DOF_MAP:
+            # Get the target index for the H1 robot.
+            h1_idx = H1_DOF_MAP[key_to_check]
+            # Place the value from the H1-2 reading into the correct H1 position.
+            h1_vel_reading[h1_idx] = h1_2_vel_reading[h1_2_idx]
+        else:
+            print("DOF vel convert met error!")
+            raise KeyError
+            
+    return h1_vel_reading
+
 
 def h1Action_to_h12Action():
     raise KeyError
@@ -168,9 +209,10 @@ def make_observation(handler, commands):
 
     default_dof_pos = handler.default_pos
     tmp_joint_pos = (handler.joint_pos - default_dof_pos) * 1.0
-    dof_pos = dof_pos_convert_h1_2_to_h1()
+    dof_pos = dof_pos_convert_h1_2_to_h1(h1_2_dof_reading=tmp_joint_pos)
 
-    dof_vel = None
+    tmp_joint_vel = handler.joint_vel * LeggedRobotCfg.normalization.obs_scales.dof_vel
+    dof_vel = dof_vel_convert_h1_2_to_h1(h1_2_vel_reading=tmp_joint_vel)
     action = None
     commands 
     clock_input = None
