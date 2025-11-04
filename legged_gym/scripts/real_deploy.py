@@ -32,7 +32,13 @@ DISTURB_DIM = 8
 NUM_PARTIAL_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT
 NUM_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT + PRIVILEGED_DIM + TERRAIN_DIM
 
+DECIMATION = 4
+
 h1_commands_scale = torch.tensor([2.0, 2.0, 0.25, 1.0, 1.0, 1.0, 0.15, 2.0, 0.5, 0.5, 1], device='cuda:0', requires_grad=False)
+
+clock_inputs = torch.zeros(1, 2, dtype=torch.float, device="cuda:0", requires_grad=False, )
+gait_indices = torch.zeros(1, dtype=torch.float, device="cuda:0", requires_grad=False, )
+dt = DECIMATION * 1 / 200
 
 H1_DOF_MAP = {
     'left_ankle_joint': 4, 'left_elbow_joint': 14, 'left_hip_pitch_joint': 2,
@@ -151,6 +157,7 @@ def make_observation(handler, action, commands):
     projected_gravity = quaternions.rotate_vector(
         v=gravity_vector,
         q=quaternions.qinverse(handler.quat)
+        
     )    # tensor([[ 1.2025e-02,  2.3940e-04, -9.9993e-01]], device='cuda:0')
 
 
@@ -213,18 +220,32 @@ def make_observation(handler, action, commands):
     # dof pos 
     tmp_joint_pos = (handler.joint_pos - default_dof_pos) * 1.0
     dof_pos = dof_pos_convert_h1_2_to_h1(h1_2_dof_reading=tmp_joint_pos)
+    assert(type(dof_pos) == torch.Tensor)
+
     # dof vel
     tmp_joint_vel = handler.joint_vel * LeggedRobotCfg.normalization.obs_scales.dof_vel
-    dof_vel = dof_vel_convert_h1_2_to_h1(h1_2_vel_reading=tmp_joint_vel)
+    dof_vel = dof_vel_convert_h1_2_to_h1(h1_2_vel_reading=tmp_joint_vel) 
+    assert(type(dof_vel) == torch.Tensor)
+
     # action
     assert(action.shape == torch.Size([1, 19]))
+
     # commands
     assert(commands.shape == torch.Size([1, 11]))
     commands = commands * h1_commands_scale
+
     # clock inputs
-    clock_inputs = None
-    
-    
+    frequencies = commands[:, 3]
+    phases = commands[:, 4]
+    durations = commands[:, 5]
+    gait_indices = torch.remainder(gait_indices + dt * frequencies, 1.0)
+    foot_indices = [gait_indices + phases, gait_indices] 
+    clock_inputs[:, 0] = torch.sin(2 * np.pi * foot_indices[0])
+    clock_inputs[:, 1] = torch.sin(2 * np.pi * foot_indices[1])
+    assert(type(clock_inputs) == torch.Tensor)
+
+     
+    obs = torch.cat() 
     
     
 
