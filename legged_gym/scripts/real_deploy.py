@@ -39,6 +39,7 @@ h1_commands_scale = torch.tensor([2.0, 2.0, 0.25, 1.0, 1.0, 1.0, 0.15, 2.0, 0.5,
 clock_inputs = torch.zeros(1, 2, dtype=torch.float, device="cuda:0", requires_grad=False, )
 gait_indices = torch.zeros(1, dtype=torch.float, device="cuda:0", requires_grad=False, )
 dt = DECIMATION * 1 / 200
+#obs_clip = 100
 
 H1_DOF_MAP = {
     'left_ankle_joint': 4, 'left_elbow_joint': 14, 'left_hip_pitch_joint': 2,
@@ -142,11 +143,65 @@ def dof_vel_convert_h1_2_to_h1(h1_2_vel_reading: np.ndarray) -> np.ndarray:
     return h1_vel_reading
 
 
-def h1Action_to_h12Action():
-    raise KeyError
+def convert_action_h1_to_h1_2(h1_action: torch.Tensor) -> torch.Tensor:
+    """
+    Converts an H1 action (19 values) to an H1-2 action (27 values).
+    
+    The input H1 action order is assumed to follow the H1_DOF_MAP.
+    Joints that exist in H1-2 but not in H1 are set to 0.0.
+    
+    This function handles both 1D (19,) and 2D (N, 19) batched tensors.
+
+    Args:
+        h1_action: A torch.Tensor of shape (19,) or (N, 19) with H1 action values.
+
+    Returns:
+        A torch.Tensor of shape (27,) or (N, 27) with H1-2 action values.
+    """
+    is_batched = h1_action.dim() == 2
+    
+    if is_batched:
+        # Batched input, e.g., shape (N, 19)
+        if h1_action.shape[1] != len(H1_DOF_MAP):
+            raise ValueError(f"Input batch must have shape (N, {len(H1_DOF_MAP)}), but got {h1_action.shape}")
+        batch_size = h1_action.shape[0]
+        output_shape = (batch_size, len(H1_2_DOF_NAMES))
+    else:
+        # 1D input, e.g., shape (19,)
+        if h1_action.shape[0] != len(H1_DOF_MAP):
+            raise ValueError(f"Input action must have {len(H1_DOF_MAP)} elements, but got {h1_action.shape}")
+        output_shape = (len(H1_2_DOF_NAMES),)
+
+    # Initialize the output tensor with zeros on the same device/dtype.
+    h1_2_action = torch.zeros(output_shape, dtype=torch.float, device="cuda:0")
+    
+    # Iterate through the H1-2 joints by their index and name.
+    for h1_2_idx, h1_2_name in enumerate(H1_2_DOF_NAMES):
+        # By default, the name we look for in the H1 map is the H1-2 name itself.
+        key_to_check = h1_2_name
+        
+        # Only simplify the name for ankle and elbow joints.
+        if "ankle_pitch_joint" in h1_2_name or "elbow_pitch_joint" in h1_2_name:
+            key_to_check = h1_2_name.replace("_pitch", "")
+        
+        # Check if this joint exists in the H1 map.
+        if key_to_check in H1_DOF_MAP:
+            # If it exists, get its index in the H1 action array.
+            h1_idx = H1_DOF_MAP[key_to_check]
+            
+            # Get the action value from the input H1 action and place it.
+            if is_batched:
+                h1_2_action[:, h1_2_idx] = h1_action[:, h1_idx]
+            else:
+                h1_2_action[h1_2_idx] = h1_action[h1_idx]
+        
+        # If key_to_check is not in H1_DOF_MAP, that joint is an H1-2-only
+        # joint, and its value will remain 0.0, as initialized.
+            
+    return h1_2_action
 
 
-def make_observation(handler, action, commands):
+def make_observation(handler, actions, commands):
     #NOTE: handler return quaternion in w, x, y, z 
 
     gravity_vector = np.array([0, 0, -1])
@@ -228,7 +283,7 @@ def make_observation(handler, action, commands):
     assert(type(dof_vel) == torch.Tensor)
 
     # action
-    assert(action.shape == torch.Size([1, 19]))
+    assert(actions.shape == torch.Size([1, 19]))
 
     # commands
     assert(commands.shape == torch.Size([1, 11]))
@@ -243,9 +298,16 @@ def make_observation(handler, action, commands):
     clock_inputs[:, 0] = torch.sin(2 * np.pi * foot_indices[0])
     clock_inputs[:, 1] = torch.sin(2 * np.pi * foot_indices[1])
     assert(type(clock_inputs) == torch.Tensor)
-
      
-    obs = torch.cat() 
+    obs = torch.cat((
+            base_ang_vel,
+            projected_gravity,
+            dof_pos,
+            dof_vel,
+            actions,
+            commands,
+            clock_inputs,
+        ), dim=-1)
     
     
 
@@ -305,8 +367,8 @@ def deploy(args):
     _, _ = env.reset()
 
     # initialize action, obs and commands
-    last_action = torch.zeros(env.num_envs, env.num_actions, dtype=torch.float, device=env.device)
-    obs, critic_obs, _, _, _ = env.step(last_action)
+    last_actions = torch.zeros(env.num_envs, env.num_actions, dtype=torch.float, device=env.device)
+    #obs, critic_obs, _, _, _ = env.step(last_action)
     commands = torch.zeros(1, 11, dtype=torch.float, device='cuda:0', requires_grad=False)
 
     # initialize command handler
@@ -344,64 +406,47 @@ def deploy(args):
                 continue
             last_update_time = time.time()
 
-            projected_gravity = quaternions.rotate_vector(
-                v=np.array([0, 0, -1]),
-                q=quaternions.qinverse(cmd_handler.quat),
-            )
-
             # make commands, refer play.py for more details
-            commands[0] = 0
-            commands[1] = 0
-            commands[2] = 0
-            commands[3] = 2.0
-            commands[4] = 0.5
-            commands[5] = 0.5
-            commands[6] = 0.2
-            commands[7] = -0.0
-            commands[8] = 0.0
-            commands[9] = 0.0
+            commands[:, 0] = 0
+            commands[:, 1] = 0
+            commands[:, 2] = 0
+            commands[:, 3] = 2.0
+            commands[:, 4] = 0.5
+            commands[:, 5] = 0.5
+            commands[:, 6] = 0.2
+            commands[:, 7] = -0.0
+            commands[:, 8] = 0.0
+            commands[:, 9] = 0.0
+            commands[:, 10] = 1.0
+
+            # make obs 
+            obs = make_observation(handler=cmd_handler, actions=last_actions, )
+            assert(obs.shape == torch.Size([1, 76]))   # check the shape of obs
+            # clip obs
+            obs_clip = LeggedRobotCfg.normalization.clip_observations 
+            cliped_obs = torch.clip(obs, -obs_clip, obs_clip)
+            assert(cliped_obs == torch.Size([1, 76]))  # check the shape of obs after clipping
+            obs_buf_history.insert(cliped_obs)
             
-            obs = make_observation(args=None, commands=commands)
-            action = policy.act_inference(obs, privileged_obs=None)
+            # get obs buffer, historical 5 step observations
+            obs_buf, _ = obs_buf_history.get_obs_tensor_3D()
+            assert(obs_buf.shape == torch.Size([1, 5, 76]))
+
+            actions = policy.act_inference(obs, privileged_obs=None)
+
+            # store actions for next round observation making
+            last_actions = actions.copy()
+
+            # clip actions for current step
+            action_clip = LeggedRobotCfg.normalization.clip_actions
+            cliped_actions = torch.clip(actions.clone(), -action_clip, action_clip)
 
             # TODO: action handler before sending action to cmd_handler?
-            
+            h12_action = convert_action_h1_to_h1_2(cliped_actions)
  
     except KeyboardInterrupt:
         pass
 
-
-
-
-
-    for timestep in tqdm.tqdm(range(timesteps)):
-        with torch.inference_mode():
-            actions, _ = policy.act_inference(obs, privileged_obs=None)
-
-            obs, critic_obs, _, _, _ = env.step(actions)
-
-            h_scale = 1
-            v_scale = 0.
-
-
-
-            env.commands[:, 0] = 0
-            env.commands[:, 1] = 0
-            env.commands[:, 2] = 0
-            env.commands[:, 3] = 2.0
-            env.commands[:, 4] = 0.5
-            env.commands[:, 5] = 0.5
-            env.commands[:, 6] = 0.2
-            env.commands[:, 7] = -0.0
-            env.commands[:, 8] = 0.0
-            env.commands[:, 9] = 0.0
-            env.use_disturb = True
-            env.disturb_masks[:] = True
-            env.disturb_isnoise[:]= True
-            env.disturb_rad_curriculum[:] = 1.0
-            env.interrupt_mask[:] = env.disturb_masks[:]
-            env.standing_envs_mask[:] = True
-            env.commands[env.standing_envs_mask, :3] = 0
 
 if __name__ == '__main__':
     args = get_args()

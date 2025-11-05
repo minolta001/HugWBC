@@ -106,6 +106,7 @@ def play(args):
             env.commands[:, 7] = -0   # body height [-0.3, 0.3]
             env.commands[:, 8] = 0    # body pitch [0.0, 0.4] 
             env.commands[:, 9] = 1.0    # waist roll [-1.0, 1.0]
+            #env.commands[:, 10] = 1    # interrupt_flag  
             env.use_disturb = False
             env.disturb_masks[:] = True
             env.disturb_isnoise[:]= True
