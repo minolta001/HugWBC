@@ -18,6 +18,7 @@ import time
 from transforms3d import quaternions
 from legged_gym.legged_utils.observation_buffer import ObservationBuffer
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg
+from legged_gym.envs.h1.h1_config import H1Cfg
 
 PROPRIOCEPTION_DIM = 63
 INTERRUPT_IN_CMD = True    
@@ -35,6 +36,7 @@ NUM_OBS = PROPRIOCEPTION_DIM + CMD_DIM + CLOCK_INPUT + PRIVILEGED_DIM + TERRAIN_
 DECIMATION = 4
 
 h1_commands_scale = torch.tensor([2.0, 2.0, 0.25, 1.0, 1.0, 1.0, 0.15, 2.0, 0.5, 0.5, 1], device='cuda:0', requires_grad=False)
+h12_action_scale = H1Cfg.control.action_scale
 
 clock_inputs = torch.zeros(1, 2, dtype=torch.float, device="cuda:0", requires_grad=False, )
 gait_indices = torch.zeros(1, dtype=torch.float, device="cuda:0", requires_grad=False, )
@@ -64,6 +66,25 @@ H1_2_DOF_NAMES = [
     'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'right_wrist_pitch_joint',
     'right_wrist_yaw_joint'
 ]
+
+def h12_action_handler(handler, actions, default_dof_pos, reset_dof_pos, mode=0):
+    '''
+        Handle action input before sending it to low level command handler.
+        Decide which mode to run the action command.
+
+        mode 0: position-based control
+        mode 1: torque-based control
+        mode 2: damping control
+    '''
+    # position-based control
+    if mode == 0:
+        target_pos = reset_dof_pos + 1.0 * (
+            default_dof_pos + actions * h12_action_scale - reset_dof_pos
+        )
+        handler.target_pos = target_pos
+    else:
+        return NotImplemented
+
 
 def dof_pos_convert_h1_2_to_h1(h1_2_dof_reading: np.ndarray) -> np.ndarray:
     """
@@ -375,7 +396,7 @@ def deploy(args):
     cmd_handler = LowStateCmdHandler(cfg=None)
     cmd_handler.init()
     cmd_handler.start()
-
+    
     # load default and reset dof pos
     default_dof_pos = cmd_handler.default_pos.copy()
     reset_dof_pos = cmd_handler.reset_pos.copy()
@@ -435,14 +456,20 @@ def deploy(args):
             actions = policy.act_inference(obs, privileged_obs=None)
 
             # store actions for next round observation making
-            last_actions = actions.copy()
+            last_actions = actions.clone()
 
             # clip actions for current step
             action_clip = LeggedRobotCfg.normalization.clip_actions
             cliped_actions = torch.clip(actions.clone(), -action_clip, action_clip)
 
             # TODO: action handler before sending action to cmd_handler?
-            h12_action = convert_action_h1_to_h1_2(cliped_actions)
+            h12_actions = convert_action_h1_to_h1_2(cliped_actions)
+
+            h12_action_handler(handler=cmd_handler,
+                               actions=h12_actions, 
+                               default_dof_pos=default_dof_pos,
+                               reset_dof_pos=reset_dof_pos,
+                               mode=0)
  
     except KeyboardInterrupt:
         pass
