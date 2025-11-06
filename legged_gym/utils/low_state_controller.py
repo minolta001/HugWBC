@@ -36,9 +36,17 @@ class LowStateCmdHandler(LowStateMsgHandler):
             if "reset_joint_angles" in vars(self.cfg.robot_args).keys():
                 self.reset_pos = np.array([self.cfg.robot_args.reset_joint_angles[name] for name in self.dof_names])
                 self.target_pos = np.array([self.cfg.robot_args.reset_joint_angles[name] for name in self.dof_names])
+
+                #NOTE: torque control testing
+                self.target_torque = np.array([0 for name in self.dof_names])
+                
             else:
                 self.reset_pos = np.array([self.cfg.robot_args.default_dof[name] for name in self.dof_names])
                 self.target_pos = np.array([self.cfg.robot_args.default_dof[name] for name in self.dof_names])
+                
+                #NOTE: torque control testing
+                self.target_torque = np.array([0 for name in self.dof_names])
+
             self.full_default_pos = np.zeros(self.num_full_dof)
             for i in range(self.num_dof):
                 self.full_default_pos[self.dof_index[i]] = self.default_pos[i]
@@ -294,6 +302,38 @@ class LowStateCmdHandler(LowStateMsgHandler):
             #self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] * 3
             self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i]
             self.low_cmd.motor_cmd[self.dof_index[i]].tau = 0
+
+    def set_cmd_multi_modes(self, mode=0):
+        '''
+            send control commands, under different modes
+            
+            mode 0: position-based control
+            mode 1: torque-based control    
+        '''
+        if mode == 0:   # position control. dq (velocity) and tau(torque force) should be set to 0
+            for i in range(self.num_dof):
+                self.low_cmd.motor_cmd[self.dof_index[i]].q = self.target_pos[i]
+                self.low_cmd.motor_cmd[self.dof_index[i]].dq = 0
+                self.low_cmd.motor_cmd[self.dof_index[i]].kp = self.kp[i]
+                # NOTE: Why kd times 3?
+                #self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] * 3
+                self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i]
+                self.low_cmd.motor_cmd[self.dof_index[i]].tau = 0
+
+        elif mode == 1: # torque-based control. q (position) and dq (velocity) should be set to 0
+             for i in range(self.num_dof):
+                self.low_cmd.motor_cmd[self.dof_index[i]].q = 0
+                self.low_cmd.motor_cmd[self.dof_index[i]].dq = 0
+                self.low_cmd.motor_cmd[self.dof_index[i]].kp = self.kp[i]
+                # NOTE: Why kd times 3?
+                #self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] * 3
+                self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i]
+                self.low_cmd.motor_cmd[self.dof_index[i]].tau = self.target_torque[i]
+       
+        else:
+            return NotImplemented
+
+        
 
     def LowCmdWrite(self):
         if self.L2 and self.R2:
