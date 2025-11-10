@@ -19,7 +19,8 @@ from unitree_sdk2py.utils.thread import RecurrentThread
 from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
 from unitree_sdk2py.go2.sport.sport_client import SportClient
 
-from .low_state_handler import LowStateMsgHandler, JointID
+from low_state_handler import LowStateMsgHandler, JointID
+from low_state_handler import print_h1_2_dof_values
 
 class LowStateCmdHandler(LowStateMsgHandler):
     def __init__(self, cfg=None, freq=1000):
@@ -78,8 +79,6 @@ class LowStateCmdHandler(LowStateMsgHandler):
 
             self.kp = [kp_groups[self.group_from_name(name, kp_groups.keys())] for name in self.dof_names]
             
-            kd_groups = self.cfg.robot_args.dof_kd
-
             kd_groups = {
                 'ankle_pitch': 2,
                 'ankle_roll': 2,
@@ -297,10 +296,10 @@ class LowStateCmdHandler(LowStateMsgHandler):
         for i in range(self.num_dof):
             self.low_cmd.motor_cmd[self.dof_index[i]].q = self.target_pos[i]
             self.low_cmd.motor_cmd[self.dof_index[i]].dq = 0
-            self.low_cmd.motor_cmd[self.dof_index[i]].kp = self.kp[i]
+            self.low_cmd.motor_cmd[self.dof_index[i]].kp = self.kp[i] / 3
             # NOTE: Why kd times 3?
             #self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] * 3
-            self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i]
+            self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] 
             self.low_cmd.motor_cmd[self.dof_index[i]].tau = 0
 
     def set_cmd_multi_modes(self, mode=0):
@@ -370,17 +369,48 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--cfg', type=str, default=None)
     args = parser.parse_args()
 
-    cfg = yaml.safe_load(open(f"../{args.robot}.yaml"))
-    if args.cfg is not None:
-        cfg = yaml.safe_load(open(f"../{args.robot}/{args.cfg}.yaml"))
+    if args.robot == 'go2' or args.robot == 'g1':
+        cfg = yaml.safe_load(open(f"../{args.robot}.yaml"))
+        if args.cfg is not None:
+            cfg = yaml.safe_load(open(f"./cfgs/{args.robot}/{args.cfg}.yaml"))
+    else:
+        cfg = None
 
     # Run steta publisher
     low_state_handler = LowStateCmdHandler(cfg)
     low_state_handler.init()
     low_state_handler.start()
+
+
     try:
         while True:
             time.sleep(1)
+            if args.robot == "h1-2":
+                print_h1_2_dof_values(low_state_handler.joint_pos)
+
+                '''
+                # test low level joint command
+                target_pos = low_state_handler.default_pos.copy()
+                target_pos[2] = 0.05 # NOTE: only hip rolls have the same command direction?
+                target_pos[8] = -0.05
+
+                target_pos[14] = 0.6
+                target_pos[21] = -0.6
+                
+                target_pos[16] = 0.5
+                target_pos[23] = 0.5
+
+                target_pos[15] = 0.4
+                target_pos[22] = -0.4
+
+                target_pos[1] = -0.4
+                target_pos[7] = 0.4
+
+                target_pos[12] = 0.4
+
+                low_state_handler.target_pos = target_pos
+                '''
+                
     except KeyboardInterrupt:
         if low_state_handler.robot_name == "go2":
             low_state_handler.recover()

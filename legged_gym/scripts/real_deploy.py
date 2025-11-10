@@ -412,6 +412,10 @@ def deploy(args):
     # reset buffer
     obs_buf_history.reset(env_idxs, full_obs_buf[:, :NUM_PARTIAL_OBS])
 
+
+    cmd_handler.target_pos = default_dof_pos
+    input("Ready for policy running. Stay away! Enter to continue......")
+
     try:
         while not cmd_handler.Start:
             time.sleep(0.1)
@@ -470,6 +474,8 @@ def deploy(args):
                                default_dof_pos=default_dof_pos,
                                reset_dof_pos=reset_dof_pos,
                                mode=0)
+        
+            step_id +=1
  
     except KeyboardInterrupt:
         pass
