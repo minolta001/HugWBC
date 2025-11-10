@@ -341,9 +341,13 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--cfg', type=str, default=None)
     args = parser.parse_args()
 
-    cfg = yaml.safe_load(open(f"../{args.robot}.yaml"))
-    if args.cfg is not None:
-        cfg = yaml.safe_load(open(f"./cfgs/{args.robot}/{args.cfg}.yaml"))
+    cfg = None
+    if args.robot == 'go2' or 'g1':
+        cfg = yaml.safe_load(open(f"../{args.robot}.yaml"))
+        if args.cfg is not None:
+            cfg = yaml.safe_load(open(f"./cfgs/{args.robot}/{args.cfg}.yaml"))
+    else:
+        cfg = None
 
     # Run steta publisher
     low_state_handler = LowStateMsgHandler(cfg)
