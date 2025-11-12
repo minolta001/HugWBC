@@ -394,8 +394,8 @@ if __name__ == "__main__":
                 target_pos[2] = 0.05 # NOTE: only hip rolls have the same command direction?
                 target_pos[8] = -0.05
 
-                target_pos[14] = 0.6
-                target_pos[21] = -0.6
+                target_pos[14] = 1.5
+                target_pos[21] = -1.5
                 
                 target_pos[16] = 0.5
                 target_pos[23] = 0.5
