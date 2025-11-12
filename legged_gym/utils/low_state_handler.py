@@ -133,6 +133,35 @@ JointID = {
     },
 }
 
+def print_h1_2_dof_values(h1_2_readings: list | np.ndarray ):
+    """
+    Prints the name and value for each joint in an H1-2 DOF reading.
+    
+    The input order is assumed to match the H1_2_DOF_MAP_H1_2 indices.
+
+    Args:
+        h1_2_readings: A list, numpy array, or 1D torch.Tensor of shape (27,).
+    """
+    if len(h1_2_readings) != 27:
+        raise ValueError(f"Input must have 27 elements, but got {len(h1_2_readings)}")
+    
+    print("--- H1-2 Joint Values ---")
+    
+    # Sort the dictionary items by index (value) to ensure correct print order
+    sorted_joints = sorted(JointID['h1-2'].items(), key=lambda item: item[1])
+
+    for name, idx in sorted_joints:
+        # h1_2_readings[idx] works for lists, np.ndarray, and torch.Tensor
+        # .item() is used to get the scalar value from a tensor/numpy element
+        try:
+            value = h1_2_readings[idx].item()
+        except AttributeError:
+            value = h1_2_readings[idx] # Handle case if it's a plain list of floats
+            
+        print(f"  {idx:02d} | {name:<28} | {value: .4f}")
+    print("---------------------------")
+
+
 class LowStateMsgHandler:
     def __init__(self, cfg=None, freq=1000):
         if cfg != None:     # for robots that have been registered
@@ -206,7 +235,7 @@ class LowStateMsgHandler:
     def init(self):
 
         try:
-            ChannelFactoryInitialize(0, "enx2c16dbaafd43") # MANUAL SET NETWORK INTERFACE
+            ChannelFactoryInitialize(0, "enp0s31f6") # MANUAL SET NETWORK INTERFACE
         except:
             pass
 
@@ -271,7 +300,8 @@ class LowStateMsgHandler:
             # self.temperature[i] = motor_state[self.dof_index[i]].temperature
             error_code = motor_state[self.dof_index[i]].reserve[0]
             if error_code != 0:
-                print(f"Joint {self.dof_index[i]} Error Code: {error_code}")
+                pass
+                #print(f"Joint {self.dof_index[i]} Error Code: {error_code}")
         for i in range(self.num_full_dof):
             self.full_joint_pos[i] = motor_state[i].q
         # print(self.joint_pos)
@@ -341,13 +371,22 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--cfg', type=str, default=None)
     args = parser.parse_args()
 
-    cfg = yaml.safe_load(open(f"../{args.robot}.yaml"))
-    if args.cfg is not None:
-        cfg = yaml.safe_load(open(f"./cfgs/{args.robot}/{args.cfg}.yaml"))
+    print(args.robot)
+
+    cfg = None
+    if args.robot == 'go2' or args.robot == 'g1':
+        cfg = yaml.safe_load(open(f"../{args.robot}.yaml"))
+        if args.cfg is not None:
+            cfg = yaml.safe_load(open(f"./cfgs/{args.robot}/{args.cfg}.yaml"))
+    else:
+        cfg = None
 
     # Run steta publisher
     low_state_handler = LowStateMsgHandler(cfg)
     low_state_handler.init()
     while True:
         time.sleep(1)
-        print(low_state_handler.joint_pos)
+        if args.robot == "h1-2":
+            print_h1_2_dof_values(low_state_handler.joint_pos)
+        else: 
+            print(low_state_handler.joint_pos)
