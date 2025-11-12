@@ -419,8 +419,6 @@ def deploy(args):
         print("Start runing policy")
         last_update_time = time.time()
 
-        step_id = 0
-
         while not cmd_handler.emergency_stop:
             if time.time() - last_update_time < 0.02:
                 time.sleep(0.001)
@@ -443,11 +441,12 @@ def deploy(args):
             # make obs 
             obs = make_observation(handler=cmd_handler, actions=last_actions, )
             assert(obs.shape == torch.Size([1, 76]))   # check the shape of obs
+
             # clip obs
             obs_clip = LeggedRobotCfg.normalization.clip_observations 
             cliped_obs = torch.clip(obs, -obs_clip, obs_clip)
             assert(cliped_obs == torch.Size([1, 76]))  # check the shape of obs after clipping
-            obs_buf_history.insert(cliped_obs)
+            obs_buf_history.insert(cliped_obs)  # insert obs
             
             # get obs buffer, historical 5 step observations
             obs_buf, _ = obs_buf_history.get_obs_tensor_3D()
