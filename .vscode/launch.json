@@ -6,6 +6,8 @@
     "configurations": [
 
 
+
+
         {
             "python": "/home/lichen2204/miniconda3/envs/hugwbc/bin/python",
             "name": "Eval",
@@ -34,7 +36,7 @@
 
         {
             "python": "/home/t480-2204/miniconda3/envs/go2/bin/python",
-            "name": "low command test",
+            "name": "t480 low command test",
             "type": "debugpy",
             "request": "launch",
             "program": "/home/t480-2204/hugwbc/HugWBC/legged_gym/utils/low_state_controller.py",
@@ -42,6 +44,33 @@
             "cwd":"/home/t480-2204/hugwbc/HugWBC",
             "args": [
                 "-r=h1-2"
+            ]
+        },
+
+        {
+            "python": "/home/lichen2204/miniconda3/envs/hugwbc/bin/python",
+            "name": "desktop low command test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/lichen2204/Genesis_baseline/HugWBC/legged_gym/utils/low_state_controller.py",
+            "console": "integratedTerminal",
+            "cwd":"/home/lichen2204/Genesis_baseline/HugWBC",
+            "args": [
+                "-r=h1-2"
+            ]
+        },
+
+
+        {
+            "python": "/home/lichen2204/miniconda3/envs/hugwbc/bin/python",
+            "name": "desktop h1-2 deploy",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/lichen2204/Genesis_baseline/HugWBC/legged_gym/scripts/h1-2_wbc.py",
+            "console": "integratedTerminal",
+            "cwd":"/home/lichen2204/Genesis_baseline/HugWBC",
+            "args": [
+                "--task=h1int"
             ]
         },
     ]

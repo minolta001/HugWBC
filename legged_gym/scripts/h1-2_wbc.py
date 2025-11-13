@@ -12,13 +12,15 @@ import tqdm
 from torch.utils.tensorboard import SummaryWriter
 import yaml
 from isaacgym import gymapi
-from utils.low_state_controller import LowStateCmdHandler
-from utils.low_state_handler import JointID
+from legged_gym.utils.low_state_controller import LowStateCmdHandler
+from legged_gym.utils.low_state_handler import JointID
 import time
 from transforms3d import quaternions
 from legged_gym.legged_utils.observation_buffer import ObservationBuffer
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg
 from legged_gym.envs.h1.h1_config import H1Cfg
+from isaacgym.torch_utils import *
+
 
 PROPRIOCEPTION_DIM = 63
 INTERRUPT_IN_CMD = True    
@@ -41,7 +43,8 @@ h12_action_scale = H1Cfg.control.action_scale
 clock_inputs = torch.zeros(1, 2, dtype=torch.float, device="cuda:0", requires_grad=False, )
 gait_indices = torch.zeros(1, dtype=torch.float, device="cuda:0", requires_grad=False, )
 dt = DECIMATION * 1 / 200
-#obs_clip = 100
+gravity_vec = to_torch(get_axis_params(-1., 2), device='cuda:0').repeat((1, 1))
+
 
 H1_DOF_MAP = {
     'left_ankle_joint': 4, 'left_elbow_joint': 14, 'left_hip_pitch_joint': 2,
@@ -77,6 +80,10 @@ def h12_action_handler(handler, actions, default_dof_pos, reset_dof_pos, mode=0)
         mode 2: damping control
     '''
     # position-based control
+    
+    tmp = actions.detach().cpu().numpy().flatten()
+    actions = tmp
+
     if mode == 0:
         target_pos = reset_dof_pos + 1.0 * (
             default_dof_pos + actions * h12_action_scale - reset_dof_pos
@@ -118,8 +125,7 @@ def dof_pos_convert_h1_2_to_h1(h1_2_dof_reading: np.ndarray) -> np.ndarray:
             # Place the value from the H1-2 reading into the correct H1 position.
             h1_dof_reading[h1_idx] = h1_2_dof_reading[h1_2_idx]
         else:
-            print("DOF pos convert met error!")
-            raise KeyError
+           continue
 
     return h1_dof_reading
 
@@ -158,8 +164,7 @@ def dof_vel_convert_h1_2_to_h1(h1_2_vel_reading: np.ndarray) -> np.ndarray:
             # Place the value from the H1-2 reading into the correct H1 position.
             h1_vel_reading[h1_idx] = h1_2_vel_reading[h1_2_idx]
         else:
-            print("DOF vel convert met error!")
-            raise KeyError
+            continue
             
     return h1_vel_reading
 
@@ -225,16 +230,26 @@ def convert_action_h1_to_h1_2(h1_action: torch.Tensor) -> torch.Tensor:
 def make_observation(handler, actions, commands):
     #NOTE: handler return quaternion in w, x, y, z 
 
-    gravity_vector = np.array([0, 0, -1])
-
+    global gait_indices
     base_ang_vel = handler.ang_vel * LeggedRobotCfg.normalization.obs_scales.ang_vel     # tensor([[ 0.0148,  0.8147, -0.6067]], device='cuda:0')
+    base_ang_vel = torch.from_numpy(base_ang_vel).float().unsqueeze(0).to('cuda:0')
+    assert(base_ang_vel.shape == torch.Size([1, 3]))
 
+
+    quat_xyzw = np.roll(handler.quat, -1)    # wxyz (real robot) -> xyzw (Issac gym)
+    quat_xyzw_tensor = torch.from_numpy(quat_xyzw).float().unsqueeze(0).to('cuda:0')
+    projected_gravity = quat_rotate_inverse(quat_xyzw_tensor, gravity_vec)
+    assert(projected_gravity.shape == torch.Size([1, 3]))
+
+    '''
+    gravity_vector = np.array([0, 0, -1])
     # NOTE: probably wrong. Need to recheck this part
     projected_gravity = quaternions.rotate_vector(
         v=gravity_vector,
         q=quaternions.qinverse(handler.quat)
         
     )    # tensor([[ 1.2025e-02,  2.3940e-04, -9.9993e-01]], device='cuda:0')
+    '''
 
 
     # h1 dof-index dict: {'left_ankle_joint': 4, 'left_elbow_joint': 14, 'left_hip_pitch_joint': 2, 'left_hip_roll_joint': 1, 'left_hip_yaw_joint': 0, 'left_knee_joint': 3, 'left_shoulder_pitch_joint': 11, 'left_shoulder_roll_joint': 12, 'left_shoulder_yaw_joint': 13, 'right_ankle_joint': 9, 'right_elbow_joint': 18, 'right_hip_pitch_joint': 7, 'right_hip_roll_joint': 6, 'right_hip_yaw_joint': 5, 'right_knee_joint': 8, 'right_shoulder_pitch_joint': 15, 'right_shoulder_roll_joint': 16, 'right_shoulder_yaw_joint': 17, 'torso_joint': 10}
@@ -296,12 +311,15 @@ def make_observation(handler, actions, commands):
     # dof pos 
     tmp_joint_pos = (handler.joint_pos - default_dof_pos) * 1.0
     dof_pos = dof_pos_convert_h1_2_to_h1(h1_2_dof_reading=tmp_joint_pos)
-    assert(type(dof_pos) == torch.Tensor)
+    dof_pos = torch.from_numpy(dof_pos).float().unsqueeze(0).to('cuda:0')
+
+    assert(dof_pos.shape == torch.Size([1, 19]))
 
     # dof vel
     tmp_joint_vel = handler.joint_vel * LeggedRobotCfg.normalization.obs_scales.dof_vel
-    dof_vel = dof_vel_convert_h1_2_to_h1(h1_2_vel_reading=tmp_joint_vel) 
-    assert(type(dof_vel) == torch.Tensor)
+    dof_vel = dof_vel_convert_h1_2_to_h1(h1_2_vel_reading=tmp_joint_vel)
+    dof_vel = torch.from_numpy(dof_vel).float().unsqueeze(0).to('cuda:0')
+    assert(dof_vel.shape == torch.Size([1, 19]))
 
     # action
     assert(actions.shape == torch.Size([1, 19]))
@@ -318,7 +336,7 @@ def make_observation(handler, actions, commands):
     foot_indices = [gait_indices + phases, gait_indices] 
     clock_inputs[:, 0] = torch.sin(2 * np.pi * foot_indices[0])
     clock_inputs[:, 1] = torch.sin(2 * np.pi * foot_indices[1])
-    assert(type(clock_inputs) == torch.Tensor)
+    assert(clock_inputs.shape == torch.Size([1, 2]))
      
     obs = torch.cat((
             base_ang_vel,
@@ -329,11 +347,9 @@ def make_observation(handler, actions, commands):
             commands,
             clock_inputs,
         ), dim=-1)
-    
-    
 
-
-    return KeyError
+    assert(obs.shape == torch.Size([1, 76]))
+    return obs
 
 
 def deploy(args):
@@ -417,8 +433,6 @@ def deploy(args):
     input("Ready for policy running. Stay away! Enter to continue......")
 
     try:
-        while not cmd_handler.Start:
-            time.sleep(0.1)
 
         print("Start runing policy")
         last_update_time = time.time()
@@ -430,33 +444,33 @@ def deploy(args):
             last_update_time = time.time()
 
             # make commands, refer play.py for more details
-            commands[:, 0] = 0
-            commands[:, 1] = 0
-            commands[:, 2] = 0
-            commands[:, 3] = 2.0
-            commands[:, 4] = 0.5
-            commands[:, 5] = 0.5
-            commands[:, 6] = 0.2
-            commands[:, 7] = -0.0
-            commands[:, 8] = 0.0
-            commands[:, 9] = 0.0
+            commands[:, 0] = 0 #2.0   # x velocity  [-0.6, 2.0]
+            commands[:, 1] = 0 # y velocity [-0.6, 0.6]
+            commands[:, 2] = 0    # yaw [-1, 1]
+            commands[:, 3] = 3      # feet step frequency [1.5, 3.5]    # gait frequency
+            commands[:, 4] = 0.5    # 0 jumping, 0.5 waliing, 0.25 mix of jumping and walking
+            commands[:, 5] = 0.5    #0.5 feet-ground contact duration. The smaller value, the longer contact time
+            commands[:, 6] = 0.2    # foot swing height  [0.1, 0.35]
+            commands[:, 7] = 0.2   # body height [-0.3, 0.3]
+            commands[:, 8] = 0    # body pitch [0.0, 0.4] 
+            commands[:, 9] = 0    # waist roll [-1.0, 1.0]
             commands[:, 10] = 1.0
 
             # make obs 
-            obs = make_observation(handler=cmd_handler, actions=last_actions, )
+            obs = make_observation(handler=cmd_handler, actions=last_actions, commands=commands)
             assert(obs.shape == torch.Size([1, 76]))   # check the shape of obs
 
             # clip obs
             obs_clip = LeggedRobotCfg.normalization.clip_observations 
             cliped_obs = torch.clip(obs, -obs_clip, obs_clip)
-            assert(cliped_obs == torch.Size([1, 76]))  # check the shape of obs after clipping
+            assert(cliped_obs.shape == torch.Size([1, 76]))  # check the shape of obs after clipping
             obs_buf_history.insert(cliped_obs)  # insert obs
             
             # get obs buffer, historical 5 step observations
             obs_buf, _ = obs_buf_history.get_obs_tensor_3D()
             assert(obs_buf.shape == torch.Size([1, 5, 76]))
 
-            actions = policy.act_inference(obs, privileged_obs=None)
+            actions, _ = policy.act_inference(obs_buf, privileged_obs=None)
 
             # store actions for next round observation making
             last_actions = actions.clone()
@@ -474,7 +488,6 @@ def deploy(args):
                                reset_dof_pos=reset_dof_pos,
                                mode=0)
         
-            step_id +=1
  
     except KeyboardInterrupt:
         pass

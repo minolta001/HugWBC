@@ -4,7 +4,6 @@ import yaml
 import argparse
 
 import numpy as np
-import torch
 from transforms3d import quaternions
 
 from unitree_sdk2py.core.channel import ChannelPublisher, ChannelFactoryInitialize
@@ -19,8 +18,13 @@ from unitree_sdk2py.utils.thread import RecurrentThread
 from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
 from unitree_sdk2py.go2.sport.sport_client import SportClient
 
-from low_state_handler import LowStateMsgHandler, JointID
-from low_state_handler import print_h1_2_dof_values
+
+from .low_state_handler import LowStateMsgHandler, JointID
+from .low_state_handler import print_h1_2_dof_values
+
+from isaacgym.torch_utils import *
+from isaacgym import gymtorch
+import torch
 
 class LowStateCmdHandler(LowStateMsgHandler):
     def __init__(self, cfg=None, freq=1000):
@@ -296,10 +300,10 @@ class LowStateCmdHandler(LowStateMsgHandler):
         for i in range(self.num_dof):
             self.low_cmd.motor_cmd[self.dof_index[i]].q = self.target_pos[i]
             self.low_cmd.motor_cmd[self.dof_index[i]].dq = 0
-            self.low_cmd.motor_cmd[self.dof_index[i]].kp = self.kp[i] / 3
+            self.low_cmd.motor_cmd[self.dof_index[i]].kp = self.kp[i]
             # NOTE: Why kd times 3?
             #self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] * 3
-            self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] 
+            self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i]
             self.low_cmd.motor_cmd[self.dof_index[i]].tau = 0
 
     def set_cmd_multi_modes(self, mode=0):
@@ -316,7 +320,7 @@ class LowStateCmdHandler(LowStateMsgHandler):
                 self.low_cmd.motor_cmd[self.dof_index[i]].kp = self.kp[i]
                 # NOTE: Why kd times 3?
                 #self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] * 3
-                self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i]
+                self.low_cmd.motor_cmd[self.dof_index[i]].kd = self.kd[i] * 3
                 self.low_cmd.motor_cmd[self.dof_index[i]].tau = 0
 
         elif mode == 1: # torque-based control. q (position) and dq (velocity) should be set to 0
@@ -381,7 +385,6 @@ if __name__ == "__main__":
     low_state_handler.init()
     low_state_handler.start()
 
-
     try:
         while True:
             time.sleep(1)
@@ -409,7 +412,15 @@ if __name__ == "__main__":
                 target_pos[12] = 0.4
 
                 low_state_handler.target_pos = target_pos
+                
                 '''
+                gravity_vec = to_torch(get_axis_params(-1., 2), device='cuda:0').repeat((1, 1))
+                quat_xyzw = np.roll(low_state_handler.quat, -1)    # wxyz (real robot) -> xyzw (Issac gym)
+                quat_xyzw_tensor = torch.from_numpy(quat_xyzw).float().unsqueeze(0).to('cuda:0')
+                projected_gravity = quat_rotate_inverse(quat_xyzw_tensor, gravity_vec)
+
+                print(projected_gravity)
+                print(low_state_handler.Start)
                 
     except KeyboardInterrupt:
         if low_state_handler.robot_name == "go2":

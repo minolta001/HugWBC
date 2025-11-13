@@ -133,7 +133,7 @@ JointID = {
     },
 }
 
-def print_h1_2_dof_values(h1_2_readings: list | np.ndarray ):
+def print_h1_2_dof_values(h1_2_readings):
     """
     Prints the name and value for each joint in an H1-2 DOF reading.
     
@@ -235,7 +235,7 @@ class LowStateMsgHandler:
     def init(self):
 
         try:
-            ChannelFactoryInitialize(0, "enp0s31f6") # MANUAL SET NETWORK INTERFACE
+            ChannelFactoryInitialize(0, "enp115s0") # MANUAL SET NETWORK INTERFACE
         except:
             pass
 
@@ -387,6 +387,8 @@ if __name__ == "__main__":
     while True:
         time.sleep(1)
         if args.robot == "h1-2":
-            print_h1_2_dof_values(low_state_handler.joint_pos)
+            #print_h1_2_dof_values(low_state_handler.joint_pos)
+            print(low_state_handler.Start)
+            #continue
         else: 
             print(low_state_handler.joint_pos)
