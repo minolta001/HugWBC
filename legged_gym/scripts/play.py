@@ -99,10 +99,10 @@ def play(args):
             env.commands[:, 0] = 0 #2.0   # x velocity  [-0.6, 2.0]
             env.commands[:, 1] = 0 # y velocity [-0.6, 0.6]
             env.commands[:, 2] = 0    # yaw [-1, 1]
-            env.commands[:, 3] = 1      # feet step frequency [1.5, 3.5]    # gait frequency
+            env.commands[:, 3] = 1.5      # feet step frequency [1.5, 3.5]    # gait frequency
             env.commands[:, 4] = 0.5    # 0 jumping, 0.5 walking, 0.25 mix of jumping and walking
             env.commands[:, 5] = 0.5    #0.5 feet-ground contact duration. The smaller value, the longer contact time
-            env.commands[:, 6] = 0.2    # foot swing height  [0.1, 0.35]
+            env.commands[:, 6] = 0.1    # foot swing height  [0.1, 0.35]
             env.commands[:, 7] = 0   # body height [-0.3, 0.3]
             env.commands[:, 8] = 0    # body pitch [0.0, 0.4] 
             env.commands[:, 9] = 0    # waist roll [-1.0, 1.0]
