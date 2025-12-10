@@ -43,10 +43,13 @@ class FPO:
         device="gpu",
         normalize_advantage_per_mini_batch=False,
         # RND parameters
-        rnd_cfg: dict | None = None,
+        #rnd_cfg: dict | None = None,
+        rnd_cfg = None,
         # Symmetry parameters
-        symmetry_cfg: dict | None = None,
-        multi_gpu_cfg: dict | None = None,
+        #symmetry_cfg: dict | None = None,
+        symmetry_cfg = None,
+        #multi_gpu_cfg: dict | None = None,
+        multi_gpu_cfg = None,
         **kwargs,
     ):
         self.device = device

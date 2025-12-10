@@ -67,18 +67,18 @@ class LowStateCmdHandler(LowStateMsgHandler):
             kp_groups = {
                 'ankle_pitch': 40,
                 'ankle_roll': 40,
-                'elbow_pitch': 100,
-                'elbow_roll': 100,
+                'elbow_pitch': 18,
+                'elbow_roll': 18,
                 'hip_pitch': 200,
                 'hip_roll': 200,
                 'hip_yaw': 200,
                 'knee': 300,
-                'shoulder_pitch': 100,
-                'shoulder_roll': 100,
-                'shoulder_yaw': 100,
+                'shoulder_pitch': 40,
+                'shoulder_roll': 40,
+                'shoulder_yaw': 18,
                 'torso': 300,
-                'wrist_pitch': 100,
-                'wrist_yaw': 100
+                'wrist_pitch': 10,
+                'wrist_yaw': 10
                 }
 
             self.kp = [kp_groups[self.group_from_name(name, kp_groups.keys())] for name in self.dof_names]

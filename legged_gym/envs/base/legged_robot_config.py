@@ -2,7 +2,7 @@ from .base_config import BaseConfig
 
 class LeggedRobotCfg(BaseConfig):
     class env:
-        num_envs = 4096
+        num_envs = 4096 #16384 #8192 
         num_observations = 48
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 12
@@ -96,6 +96,7 @@ class LeggedRobotCfg(BaseConfig):
         randomize_base_mass = False
         added_mass_range = [-1., 1.]
         push_robots = True
+        use_symmetry = False
         push_interval_s = 15
         max_push_vel_xy = 1.
 
@@ -162,7 +163,7 @@ class LeggedRobotCfg(BaseConfig):
 
     class sim:
         dt =  0.005
-        substeps = 1
+        substeps = 1 #1
         gravity = [0., 0. ,-9.81]  # [m/s^2]
         up_axis = 1  # 0 is y, 1 is z
 

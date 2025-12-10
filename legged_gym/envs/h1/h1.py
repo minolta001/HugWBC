@@ -77,6 +77,11 @@ class H1Robot(BaseTask):
             include_obs_steps = int(self.cfg.domain_rand.control_latency_range[1]/self.dt) + 1
             self.sensor_delayed_dim = 6 + self.num_dof * 2  # IMU + joint encoder
             self.delayed_obs_buf = ObservationBuffer(self.num_envs, self.sensor_delayed_dim, include_obs_steps, self.device, zero_pad=False)
+
+        # symmetry permutation matrices
+        if self.cfg.domain_rand.use_symmetry:
+            self.obs_perm_mat, self.act_perm_mat = self._generate_symmetry_matrices()
+
             
         self.init_done = True
     
@@ -1505,6 +1510,70 @@ class H1Robot(BaseTask):
         if self.cfg.rewards.penalize_curriculum and (self.learning_iter % 100 == 0):
             self.curriculum_scale = pow(self.curriculum_scale, self.cfg.rewards.penalize_curriculum_sigma)
 
+    def _generate_symmetry_matrices(self):
+        """ Generates permutation matrices for symmetry loss.
+            This is specific to the H1 robot's observation and action space.
+        """
+        
+        # ----- Actions Permutation (19 actions) -----
+        action_perm = list(range(self.num_actions))
+        
+        # Left <-> Right Leg (indices 0-4 <-> 5-9)
+        leg_map = {0: 5, 1: 6, 2: 7, 3: 8, 4: 9}
+        for i, j in leg_map.items():
+            action_perm[i], action_perm[j] = j, i
+        # Negate roll and yaw joints for legs
+        for i in [0, 1, 5, 6]: # hip_yaw, hip_roll
+            action_perm[i] = -action_perm[i] if action_perm[i] != 0 else -0.0001
+
+        # Left <-> Right Arm (indices 11-14 <-> 15-18)
+        arm_map = {11: 15, 12: 16, 13: 17, 14: 18}
+        for i, j in arm_map.items():
+            action_perm[i], action_perm[j] = j, i
+        # Negate roll and yaw joints for arms
+        for i in [12, 13, 16, 17]: # shoulder_roll/yaw
+            action_perm[i] = -action_perm[i] if action_perm[i] != 0 else -0.0001
+
+        # Torso (index 10)
+        action_perm[10] = -action_perm[10] if action_perm[10] != 0 else -0.0001
+
+        act_perm_mat = self._build_perm_matrix(action_perm)
+
+        # ----- Observations Permutation (Proprioception part: 63 obs) -----
+        # ang_vel(3), gravity(3), dof_pos(19), dof_vel(19), last_actions(19)
+        obs_perm = []
+        # ang_vel_x, ang_vel_y, ang_vel_z -> negate y, z
+        obs_perm.extend([-1, 2, -0])
+        # gravity_x, gravity_y, gravity_z -> negate y
+        obs_perm.extend([4, -3, 5])
+        # dof_pos
+        obs_perm.extend([p + 6 for p in action_perm])
+        # dof_vel
+        obs_perm.extend([p + 6 + self.num_dof for p in action_perm])
+        # last_actions
+        obs_perm.extend([p + 6 + 2*self.num_dof for p in action_perm])
+
+        obs_perm_mat = self._build_perm_matrix(obs_perm)
+
+        return obs_perm_mat, act_perm_mat
+
+    def _build_perm_matrix(self, perm_list):
+        """Builds a permutation matrix from a list of indices."""
+        num_items = len(perm_list)
+        perm_mat = torch.zeros(num_items, num_items, device=self.device)
+        for i, j in enumerate(perm_list):
+            j_abs = abs(j)
+            if j_abs < 0.001: j_abs = 0 # handle -0.0001 case
+            if j < 0:
+                perm_mat[i, int(j_abs)] = -1
+            else:
+                perm_mat[i, int(j_abs)] = 1
+        return perm_mat
+
+    def get_symmetry_matrices(self):
+        if hasattr(self, 'obs_perm_mat'):
+            return self.obs_perm_mat, self.act_perm_mat
+        return None, None
 
     #------------ reward functions----------------
     def _reward_lin_vel_z(self):
