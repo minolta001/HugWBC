@@ -259,11 +259,24 @@ class H12InterruptRobot(H12Robot):
         return clipped_actions
 
     def check_termination(self):
-        super().check_termination()
+        '''
+        # This is the same logic as h1interrupt.py, which is correct.
+        # It calculates all termination conditions first, then selectively disables one.
+        contact_termination = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
         # Disable termination due to torso contact if it's a disturbance
-        self.reset_buf[self.disturb_masks] = False
+        contact_termination[self.disturb_masks] = False
 
-    # ----- Custom Reward Functions for Interrupt Task -----
+        self.reset_buf = contact_termination
+        super().check_termination() # Call parent to add orientation, height, and timeout checks
+        ''' 
+
+        self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 10., dim=1)
+        self.reset_buf[self.disturb_masks] = False
+        self.large_ori_buf = torch.logical_or(torch.abs(self.rpy[:,1])>1.0, torch.abs(self.rpy[:,0])>0.8)
+        self.gravity_termination_buf = torch.any(torch.norm(self.projected_gravity[:, 0:2], dim=-1, keepdim=True) > 0.8, dim=1)
+        self.reset_buf |= self.large_ori_buf
+        self.time_out_buf = self.episode_length_buf > self.max_episode_length # no terminal reward for time-outs
+        self.reset_buf |= self.time_out_buf
 
     def _reward_action_rate_upper(self):
         """Penalize arm action rate only when not being disturbed."""
@@ -299,3 +312,22 @@ class H12InterruptRobot(H12Robot):
         reward = torch.square((self.last_dof_vel - self.dof_vel) / self.dt)
         reward[:, -self.disturb_dim:] = 0
         return torch.sum(reward, dim=1)
+
+    def _reward_feet_contact_forces(self):       
+        # penalize high contact forces
+        reward = torch.sum(
+            torch.square(self.obs_scales.contact_force*(torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) - self.cfg.rewards.max_contact_force).clip(min=0.)), 
+            dim=1).clip(max=2.0)
+        reward[self.standing_envs_mask] *= 0
+        return reward
+
+    def _reward_termination(self):
+        # Terminal reward / penalty
+        return self.reset_buf * ~self.time_out_buf
+    
+    def _reward_dof_vel_limits(self):       
+        # Penalize dof velocities too close to the limit
+        dof_vel_limits = torch.clip(10 * self.velocity_level.unsqueeze(-1).repeat(1,self.num_dof), min=10, max=20)
+        error = torch.sum((torch.abs(self.dof_vel[:, -self.disturb_dim:]) - dof_vel_limits[:, -self.disturb_dim:]).clip(min=0., max=15.), dim=1)
+        rew = 1 - torch.exp(-1 * error)
+        return rew

@@ -447,8 +447,16 @@ class H1InterruptRobot(H1Robot):
         # Penalize collisions on selected bodies For those caused by interruption , no penalty.
         return super()._reward_collision() * (~self.interrupt_mask)
 
-    def _reward_feet_contact_forces(self):       
+    def _reward_feet_contact_forces(self):
         # penalize high contact forces
+
+        debug_rewards = False
+        if debug_rewards and self.common_step_counter % 50 == 0:
+            foot_forces = torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1)
+            print(f"  {'L_foot_force':<35}: {foot_forces[0, 0].item():.10f}")
+            print(f"  {'R_foot_force':<35}: {foot_forces[0, 1].item():.10f}")
+        # --- End of debug printing ---
+
         reward = torch.sum(
             torch.square(self.obs_scales.contact_force*(torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) - self.cfg.rewards.max_contact_force).clip(min=0.)), 
             dim=1).clip(max=2.0)

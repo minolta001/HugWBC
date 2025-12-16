@@ -253,11 +253,27 @@ class H12Robot(BaseTask):
         self.rew_buf[:] = 0.
         if not self.cfg.rewards.penalize_curriculum:
             self.curriculum_scale = 1
+
+        # --- Start of debug printing ---
+        debug_rewards = True
+        if debug_rewards and self.common_step_counter % 50 == 0:
+            print(f"--- Rewards at step {self.common_step_counter} for env 0 ---")
+        # --- End of debug printing ---
+
         for i in range(len(self.reward_functions)):
             name = self.reward_names[i]
             rew = self.reward_functions[i]() * self.reward_scales[name]
             if name in self.curriculum_reward_list:
                 rew *= self.curriculum_scale 
+
+            # --- Start of debug printing ---
+            if debug_rewards and self.common_step_counter % 50 == 0:
+                if isinstance(rew, torch.Tensor):
+                    print(f"  {name:<35}: {rew.view(-1)[0].item():.10f}")
+                else:
+                    print(f"  {name:<35}: {rew:.10f}")
+            # --- End of debug printing ---
+
             self.rew_buf += rew
             self.episode_sums[name] += rew
             if name in self.command_sums.keys():
@@ -266,18 +282,20 @@ class H12Robot(BaseTask):
                 else:
                     self.command_sums[name] += rew
 
-
-
-            # NOTE: print reward info
-
-
-
-
         if self.cfg.rewards.only_positive_rewards:
             self.rew_buf[:] = torch.clip(self.rew_buf[:], min=0.)
         # add termination reward after clipping
         if "termination" in self.reward_scales:
             rew = self._reward_termination() * self.reward_scales["termination"]
+
+            # --- Start of debug printing ---
+            if debug_rewards and self.common_step_counter % 50 == 0:
+                if isinstance(rew, torch.Tensor):
+                    print(f"  {'termination':<35}: {rew.view(-1)[0].item():.10f}")
+                else:
+                    print(f"  {'termination':<35}: {rew:.10f}")
+            # --- End of debug printing ---
+
             self.rew_buf += rew
             self.episode_sums["termination"] += rew
     
@@ -1676,10 +1694,14 @@ class H12Robot(BaseTask):
     
     def _reward_feet_contact_forces(self):       
         # penalize high contact forces
+        # --- Start of debug printing ---
+
         reward = torch.sum(
             torch.square(self.obs_scales.contact_force*(torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) - self.cfg.rewards.max_contact_force).clip(min=0.)), 
             dim=1).clip(max=2.0)
         reward[self.standing_envs_mask] *= 0.2
+
+
         return reward
     
     def _reward_collision(self):    

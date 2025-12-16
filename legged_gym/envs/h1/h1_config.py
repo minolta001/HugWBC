@@ -23,6 +23,8 @@ class H1Cfg( LeggedRobotCfg ):
         observe_body_height = True
         observe_body_pitch = True
         observe_waist_roll = True
+
+        num_envs = 512
     
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 1.02] # x,y,z [m]

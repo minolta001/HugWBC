@@ -27,10 +27,10 @@ class H12Cfg( LeggedRobotCfg ):
         observe_body_pitch = True
         observe_waist_roll = True
 
-        num_envs = 128
+        num_envs = 4096
     
     class init_state( LeggedRobotCfg.init_state ):
-        pos = [0.0, 0.0, 1.05] # x,y,z [m]
+        pos = [0.0, 0.0, 1.02] # x,y,z [m]
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'left_hip_yaw_joint': 0.0,
             'left_hip_pitch_joint': -0.4,
@@ -47,17 +47,17 @@ class H12Cfg( LeggedRobotCfg ):
             'right_ankle_roll_joint': 0.0,
 
             'torso_joint': 0.0,
-            'left_shoulder_pitch_joint': 0.0,
+            'left_shoulder_pitch_joint': 0.,
             'left_shoulder_roll_joint': 0.0,
             'left_shoulder_yaw_joint': 0.0,
-            'left_elbow_pitch_joint': 0.0,
+            'left_elbow_pitch_joint': 0.,
             'left_elbow_roll_joint': 0.0,
             'left_wrist_pitch_joint': 0.0,
             'left_wrist_yaw_joint': 0.0,
-            'right_shoulder_pitch_joint': 0.0,
+            'right_shoulder_pitch_joint': 0.,
             'right_shoulder_roll_joint': 0.0,
             'right_shoulder_yaw_joint': 0.0,
-            'right_elbow_pitch_joint': 0.0,
+            'right_elbow_pitch_joint': 0.,
             'right_elbow_roll_joint': 0.0,
             'right_wrist_pitch_joint': 0.0,
             'right_wrist_yaw_joint': 0.0
@@ -114,6 +114,7 @@ class H12Cfg( LeggedRobotCfg ):
                      'wrist_yaw': 10
                      }
         # action scale: target angle = actionScale * action + defaultAngle
+        #action_scale = 0.25
         action_scale = 0.25
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 4
@@ -278,11 +279,11 @@ class H12Cfg( LeggedRobotCfg ):
     class asset( LeggedRobotCfg.asset ):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/h1_2/urdf/h1_2.urdf'
         name = "h1_2"
-        base_name = "torso" 
+        base_name = "pelvis" 
         foot_name = "ankle_roll"
         auxiliary_foot_link = ["left_foot", "right_foot"]
         penalize_contacts_on = ["elbow", "torso", "hip", "knee"]    # remove "knee"
-        terminate_after_contacts_on = ["torso"]
+        terminate_after_contacts_on = ["pelvis"]
         self_collisions = 0 # 1 to disable, 0 to enable...bitwise filter
         override_inertia = False
         override_com = False
