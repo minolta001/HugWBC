@@ -1583,16 +1583,20 @@ class H12Robot(BaseTask):
         # ----- Observations Permutation (Proprioception part: 87 obs) -----
         # ang_vel(3), gravity(3), dof_pos(27), dof_vel(27), last_actions(27)
         obs_perm = []
-        # ang_vel_x, ang_vel_y, ang_vel_z -> negate y, z
-        obs_perm.extend([-1, 2, -0])
-        # gravity_x, gravity_y, gravity_z -> negate y
-        obs_perm.extend([4, -3, 5])
+        # ang_vel_x, ang_vel_y, ang_vel_z -> x flips, y same, z flips
+        obs_perm.extend([-0.0001, 1, -2])
+        # gravity_x, gravity_y, gravity_z -> x same, y flips, z same
+        obs_perm.extend([3, -4, 5])
+
+        def offset_perm(perm, offset):
+            return [ (abs(p) + offset) * (1 if p >= 0 else -1) for p in perm ]
+
         # dof_pos
-        obs_perm.extend([p + 6 for p in action_perm])
+        obs_perm.extend(offset_perm(action_perm, 6))
         # dof_vel
-        obs_perm.extend([p + 6 + self.num_dof for p in action_perm])
+        obs_perm.extend(offset_perm(action_perm, 6 + self.num_dof))
         # last_actions
-        obs_perm.extend([p + 6 + 2*self.num_dof for p in action_perm])
+        obs_perm.extend(offset_perm(action_perm, 6 + 2*self.num_dof))
 
         obs_perm_mat = self._build_perm_matrix(obs_perm)
 
