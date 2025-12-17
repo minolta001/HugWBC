@@ -30,18 +30,18 @@ class H12Cfg( LeggedRobotCfg ):
         num_envs = 4096
     
     class init_state( LeggedRobotCfg.init_state ):
-        pos = [0.0, 0.0, 1.02] # x,y,z [m]
+        pos = [0.0, 0.0, 1.05] # x,y,z [m]
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'left_hip_yaw_joint': 0.0,
             'left_hip_pitch_joint': -0.4,
-            'left_hip_roll_joint': 0.02,
+            'left_hip_roll_joint': 0.0,
             'left_knee_joint': 0.8,
             'left_ankle_pitch_joint': -0.4,
             'left_ankle_roll_joint': 0.0,
 
             'right_hip_yaw_joint': 0.0,
             'right_hip_pitch_joint': -0.4,
-            'right_hip_roll_joint': -0.02,
+            'right_hip_roll_joint': -0.0,
             'right_knee_joint': 0.8,
             'right_ankle_pitch_joint': -0.4,
             'right_ankle_roll_joint': 0.0,
@@ -52,15 +52,22 @@ class H12Cfg( LeggedRobotCfg ):
             'left_shoulder_yaw_joint': 0.0,
             'left_elbow_pitch_joint': 0.,
             'left_elbow_roll_joint': 0.0,
+            'left_elbow_joint': 0.0,
+
             'left_wrist_pitch_joint': 0.0,
             'left_wrist_yaw_joint': 0.0,
+            'left_wrist_roll_joint': 0.0,
+
             'right_shoulder_pitch_joint': 0.,
             'right_shoulder_roll_joint': 0.0,
             'right_shoulder_yaw_joint': 0.0,
             'right_elbow_pitch_joint': 0.,
             'right_elbow_roll_joint': 0.0,
+            'right_elbow_joint': 0.0,
+
             'right_wrist_pitch_joint': 0.0,
-            'right_wrist_yaw_joint': 0.0
+            'right_wrist_yaw_joint': 0.0,
+            'right_wrist_roll_joint': 0.0
         }
     
     class control( LeggedRobotCfg.control ):
@@ -79,8 +86,11 @@ class H12Cfg( LeggedRobotCfg ):
                      'shoulder_yaw': 18,
                      "elbow_pitch": 18,
                      "elbow_roll": 18,
+                     "elbow": 18,
                      "wrist_pitch": 10,
-                     "wrist_yaw": 10
+                     "wrist_yaw": 10,
+                     "wrist_roll": 18
+
                      }  # [N*m/rad]
         damping = {  'hip_yaw': 5,
                      'hip_roll': 5,
@@ -94,8 +104,10 @@ class H12Cfg( LeggedRobotCfg ):
                      'shoulder_yaw': 2,
                      "elbow_pitch": 2,
                      "elbow_roll": 2,
+                     "elbow": 2,
                      "wrist_pitch": 2,
-                     "wrist_yaw": 2
+                     "wrist_yaw": 2,
+                     "wrist_roll": 2,
                      }  # [N*m/rad]  # [N*m*s/rad]
         torque_limits = {
                      'hip_yaw': 200,
@@ -110,8 +122,10 @@ class H12Cfg( LeggedRobotCfg ):
                      'shoulder_yaw': 18,
                      'elbow_pitch': 18,
                      'elbow_roll': 18,
+                     'elbow': 18,
                      'wrist_pitch': 10,
-                     'wrist_yaw': 10
+                     'wrist_yaw': 10,
+                     'wrist_roll': 18,
                      }
         # action scale: target angle = actionScale * action + defaultAngle
         #action_scale = 0.25
@@ -193,7 +207,7 @@ class H12Cfg( LeggedRobotCfg ):
         kappa_gait_probs = 0.05
         gait_force_sigma = 50  
         gait_vel_sigma = 5  
-        penalize_curriculum_sigma = 0.8
+        penalize_curriculum_sigma = 0.95
         reward_curriculum_list = ['action_rate', 'feet_stumble',
                                   'joint_power_distribution', 'feet_contact_forces',
                                   'dof_acc', 'torques',  
@@ -277,7 +291,7 @@ class H12Cfg( LeggedRobotCfg ):
             tracking_contacts_shaped_vel = 0.8
 
     class asset( LeggedRobotCfg.asset ):
-        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/h1_2/urdf/h1_2.urdf'
+        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/h1_2/urdf/h1_2_handless.urdf'
         name = "h1_2"
         base_name = "pelvis" 
         foot_name = "ankle_roll"
@@ -293,7 +307,10 @@ class H12Cfg( LeggedRobotCfg ):
     
     class domain_rand( LeggedRobotCfg.domain_rand ):
         randomize_friction = True
+
         friction_range = [0.1, 2.75]  # [0.5, 1.25]
+        #friction_range = [0.1, 1.25]
+
         push_interval_s = 5
         randomize_gains = True
         stiffness_multiplier_range = [0.8, 1.2]  
@@ -306,7 +323,9 @@ class H12Cfg( LeggedRobotCfg ):
         mass_ratio = [0.8, 1.2]
         link_com_offset = 0.01
         randomize_base_mass = True
+
         added_mass_range = [-3, 9]  # [-1, 3]
+
         base_com_x_offset_range = [-0.03, 0.03]
         base_com_y_offset_range = [-0.03, 0.03]
         randomize_motor_offset = True
@@ -332,7 +351,10 @@ class H12CfgPPO( LeggedRobotCfgPPO ):
                 privileged_recon_dim = 3
                 max_length = H12Cfg.env.include_history_steps
                 actor_hidden_dims = [256, 128, 32]
+                #actor_hidden_dims = [512, 256, 128, 32]
+                
                 mlp_hidden_dims = [256, 128] 
+                #mlp_hidden_dims = [512, 256, 128]
             
         critic_hidden_dims = [512, 256, 128]
         critic_obs_dim = PROPRIOCEPTION_DIM + CMD_DIM + PRIVILEGED_DIM +TERRAIN_DIM

@@ -1548,9 +1548,10 @@ class H12Robot(BaseTask):
     
     def training_curriculum(self):
         super().training_curriculum()
+
         if self.cfg.rewards.penalize_curriculum and (self.learning_iter % 100 == 0):
             self.curriculum_scale = pow(self.curriculum_scale, self.cfg.rewards.penalize_curriculum_sigma)
-
+        
     def _generate_symmetry_matrices(self):
         """ Generates permutation matrices for symmetry loss.
             This is specific to the H1 V2 robot's observation and action space.

@@ -7,7 +7,7 @@ NOISE_IN_PRIVILEGE = False
 EXECUTE_IN_PRIVILEGE = False
 CMD_DIM = 3 + 4 + 1 + 2 + INTERRUPT_IN_CMD # From H12Cfg, plus interrupt flag
 TERRAIN_DIM = 221 # From H12Cfg
-PRIVILEGED_DIM = 3 + 1 + 2 + 1 + 6 + 13 # From H12Cfg, can be extended  # 
+PRIVILEGED_DIM = 3 + 1 + 2 + 1 + 6 + 11 # From H12Cfg, can be extended  # 
 CLOCK_INPUT = 2 # From H12Cfg
 
 DISTURB_DIM = 14 # H1 V2 has 7 joints per arm
