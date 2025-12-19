@@ -34,15 +34,16 @@ class H12Cfg( LeggedRobotCfg ):
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'left_hip_yaw_joint': 0.0,
             'left_hip_pitch_joint': -0.4,
-            'left_hip_roll_joint': 0.0,
-            'left_knee_joint': 0.8,
+            'left_hip_roll_joint': 0.02,
+            'left_knee_joint': 0.8,         #0.8,
+
             'left_ankle_pitch_joint': -0.4,
             'left_ankle_roll_joint': 0.0,
 
             'right_hip_yaw_joint': 0.0,
             'right_hip_pitch_joint': -0.4,
-            'right_hip_roll_joint': -0.0,
-            'right_knee_joint': 0.8,
+            'right_hip_roll_joint': -0.02,
+            'right_knee_joint': 0.8,        #0.8,
             'right_ankle_pitch_joint': -0.4,
             'right_ankle_roll_joint': 0.0,
 
@@ -181,10 +182,11 @@ class H12Cfg( LeggedRobotCfg ):
 
             foot_swing_height = [0.1, 0.35]
 
-            body_height = [-0.3, 0.0]
+            #body_height = [-0.3, 0.0]
+            body_height = [-0.4, 0.2]
 
-            body_pitch = [0.0, 0.4]
-            #body_pitch = [0.0, 0.8]
+            #body_pitch = [0.0, 0.4]
+            body_pitch = [0.0, 0.6]
 
             waist_roll = [-1.0, 1.0]
             heading = [-3.14, 3.14]

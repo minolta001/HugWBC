@@ -132,6 +132,8 @@ class H12InterruptRobot(H12Robot):
         for key, value in self.curriculum_thresholds['disturb'].items():
             all_rew = self.command_sums[key][noise_env_ids] / ep_len
             success_threshold = value * self.reward_scales[key]
+            # If the success metric is part of the main reward curriculum,
+            # scale the success threshold accordingly. This synchronizes the two curricula.
             if key in self.curriculum_reward_list:
                 success_threshold *= self.curriculum_scale
 
@@ -260,17 +262,28 @@ class H12InterruptRobot(H12Robot):
 
     def check_termination(self):
         '''
-        # This is the same logic as h1interrupt.py, which is correct.
-        # It calculates all termination conditions first, then selectively disables one.
-        contact_termination = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
+        # First, call the parent's termination check to set all standard reset conditions
+        # (orientation, height, timeout).
+        super().check_termination()
+
+        # Now, handle the specific logic for this interrupt environment.
+        # Calculate contact termination separately.
+        contact_termination = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 10., dim=1)
         # Disable termination due to torso contact if it's a disturbance
         contact_termination[self.disturb_masks] = False
 
-        self.reset_buf = contact_termination
-        super().check_termination() # Call parent to add orientation, height, and timeout checks
-        ''' 
+        # Add the contact termination to the reset buffer.
+        self.reset_buf |= contact_termination
 
         self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 10., dim=1)
+        self.reset_buf[self.disturb_masks] = False
+        self.large_ori_buf = torch.logical_or(torch.abs(self.rpy[:,1])>1.0, torch.abs(self.rpy[:,0])>0.8)
+        self.gravity_termination_buf = torch.any(torch.norm(self.projected_gravity[:, 0:2], dim=-1, keepdim=True) > 0.8, dim=1)
+        self.reset_buf |= self.large_ori_buf
+        self.time_out_buf = self.episode_length_buf > self.max_episode_length # no terminal reward for time-outs
+        self.reset_buf |= self.time_out_buf
+        '''
+        self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
         self.reset_buf[self.disturb_masks] = False
         self.large_ori_buf = torch.logical_or(torch.abs(self.rpy[:,1])>1.0, torch.abs(self.rpy[:,0])>0.8)
         self.gravity_termination_buf = torch.any(torch.norm(self.projected_gravity[:, 0:2], dim=-1, keepdim=True) > 0.8, dim=1)
