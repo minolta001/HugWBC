@@ -71,7 +71,7 @@ class H12_FPO_InterruptRobot(H12Robot):
         self.high_track_mode[:self.noise_env_nums] = False
         self.noise_disturb_mode[:self.noise_env_nums] = True
 
-    def initial_disturb(self, cfg: H12InterruptCfg):
+    def initial_disturb(self, cfg: H12_FPO_InterruptCfg):
         self.use_disturb = cfg.disturb.use_disturb
         self.disturb_dim = cfg.disturb.disturb_dim
         self.disturb_scale = cfg.disturb.disturb_scale

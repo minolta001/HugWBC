@@ -115,7 +115,8 @@ class H12InterruptCfg( H12Cfg ):
 
     class curriculum_thresholds( H12Cfg.curriculum_thresholds):
         class disturb:
-            tracking_lin_vel = 0.6
+            #tracking_lin_vel = 0.6
+            tracking_lin_vel = 0.3
 
 class H12InterruptCfgPPO( H12CfgPPO ):
     class runner( H12CfgPPO.runner ):

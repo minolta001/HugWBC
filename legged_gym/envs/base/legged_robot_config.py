@@ -224,3 +224,49 @@ class LeggedRobotCfgPPO(BaseConfig):
         load_run = -1 # -1 = last run
         checkpoint = -1 # -1 = last saved model
         resume_path = None # updated from load_run and chkpt
+
+
+
+class LeggedRobotCfgFPO(BaseConfig):
+    seed = 1
+    runner_class_name = 'FPOOnPolicyRunner'
+    class policy:
+        init_noise_std = 1.0
+        activation = 'elu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
+
+        num_fpo_samples = 25
+        positive_advantage = False
+
+
+
+        
+    class algorithm:
+        # training params
+        value_loss_coef = 0.25
+        use_clipped_value_loss = True
+        clip_param = 0.2
+        entropy_coef = 0.01
+        num_learning_epochs = 5
+        num_mini_batches = 4 # mini batch size = num_envs*nsteps / nminibatches
+        learning_rate = 1.e-3 #5.e-4
+        schedule = 'adaptive' # could be adaptive, fixed
+        gamma = 0.99
+        lam = 0.95
+        desired_kl = 0.01
+        max_grad_norm = 1.
+
+    class runner:
+        policy_class_name = 'FPOActorCritic'
+        algorithm_class_name = 'FPO'
+        num_steps_per_env = 24 # per iteration
+        max_iterations = 1500 # number of policy updates
+
+        # logging
+        save_interval = 50 # check for potential saves every this many iterations
+        experiment_name = 'test'
+        run_name = ''
+        # load and resume
+        resume = False
+        load_run = -1 # -1 = last run
+        checkpoint = -1 # -1 = last saved model
+        resume_path = None # updated from load_run and chkpt

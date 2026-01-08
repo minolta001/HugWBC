@@ -1,4 +1,4 @@
-from legged_gym.envs.h1_2.h1_2_config import H12Cfg, H12CfgPPO
+from legged_gym.envs.h1_2_fpo.h1_2_fpo_config import H12Cfg, H12CfgFPO
 from legged_gym import LEGGED_GYM_ROOT_DIR
 
 PROPRIOCEPTION_DIM = 87 # From H12Cfg
@@ -118,18 +118,18 @@ class H12_FPO_InterruptCfg( H12Cfg ):
             #tracking_lin_vel = 0.6
             tracking_lin_vel = 0.45  # lower tracking goal to see if can activate disturb
 
-class H12InterruptCfgPPO( H12CfgPPO ):
-    class runner( H12CfgPPO.runner ):
-        experiment_name = "h1_2_interrupt"
+class H12_FPO_InterruptCfgFPO( H12CfgFPO ):
+    class runner( H12CfgFPO.runner ):
+        experiment_name = "h1_2_fpo_interrupt"
         resume = False
         resume_path = None
         max_iterations = 40000
         save_interval = 2000
 
-    class policy( H12CfgPPO.policy ):
-        model_name = "MlpAdaptModel"
+    class policy( H12CfgFPO.policy ):
+        model_name = "DiffusionPolicy"
         class NetModel:
-            class MlpAdaptModel( H12CfgPPO.policy.NetModel.MlpAdaptModel ):
+            class DiffusionPolicy( H12CfgFPO.policy.NetModel.DiffusionPolicy):
                 # Override dimensions to match the new config
                 cmd_dim = CMD_DIM + CLOCK_INPUT
                 privileged_dim = PRIVILEGED_DIM

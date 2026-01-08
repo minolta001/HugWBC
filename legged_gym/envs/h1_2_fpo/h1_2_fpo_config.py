@@ -21,7 +21,7 @@ class H12Cfg( LeggedRobotCfg ):
         observe_body_pitch = True
         observe_waist_roll = True
         stack_history_obs = True
-        include_history_steps = 5
+        include_history_steps = 1   # 5
         obs_interval = 1
         has_privileged_info = True
         observe_gait_commands = True
@@ -29,7 +29,7 @@ class H12Cfg( LeggedRobotCfg ):
         observe_body_pitch = True
         observe_waist_roll = True
 
-        num_envs = 4096
+        num_envs = 1024
     
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 1.05] # x,y,z [m]
@@ -364,11 +364,12 @@ class H12CfgFPO( LeggedRobotCfgFPO ):
         resume_path = "/home/PJLAB/xueyufei/RL_Code/unitree_rl_gym/logs/h1_teacher/Jul24_20-35-38_/model_2100.pt"
         save_interval = 2000
 
-    class algorithm( LeggedRobotCfgPPO.algorithm ):
+    class algorithm( LeggedRobotCfgFPO.algorithm ):
         entropy_coef = 0.01
         use_wbc_sym_loss = True
         symmetry_loss_coef = 0.5
         sync_update = True
+        num_training_steps = 40000
 
         # NOTE: change learning rate
         #learning_rate = 5.e-4 # Try a smaller value
