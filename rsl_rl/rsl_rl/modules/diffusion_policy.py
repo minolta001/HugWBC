@@ -91,9 +91,15 @@ class DiffusionPolicy(FeedForwardNN):
         if state_norm.ndim == 1:
             state_norm = state_norm.unsqueeze(0)
 
+
         B = state_norm.shape[0]
-        assert state_norm.shape[1] == self.in_dim - self.out_dim - 1, f"state_norm must be [{B!r}, {(self.in_dim - self.out_dim - 1)!r}], got {state_norm.shape!r}"
-        
+        assert state_norm.shape[-1] == self.in_dim - self.out_dim - 1, f"state_norm must be [{B!r}, {(self.in_dim - self.out_dim - 1)!r}], got {state_norm.shape!r}"
+
+        # NOTE: flattern state_norm buffer. [env_num, history_steps, obs] -> [env_num, obs * history steps]
+        # NOTE: Li Chen - But is it right?
+        if state_norm.ndim == 3:
+            state_norm = state_norm.flatten(1)
+
         dt = 1.0 / self.num_steps
         state_norm = state_norm.to(self.device)
         if self.fixed_noise_inference:

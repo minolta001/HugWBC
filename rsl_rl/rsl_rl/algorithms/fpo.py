@@ -177,6 +177,7 @@ class FPO:
         self.transition.initial_cfm_loss = action_info.initial_cfm_loss.detach()
         self.transition.observations = obs
         self.transition.privileged_observations = critic_obs
+        self.transition.critic_observations = critic_obs
         return self.transition.actions
 
     def process_env_step(self, rewards, dones, infos):

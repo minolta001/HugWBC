@@ -7,6 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 from torch.optim import Adam
+from .diffusion_policy import DiffusionPolicy
+from .network import FeedForwardNN
 
 
 @dataclass

@@ -33,15 +33,14 @@ class FPORolloutStorage(RolloutStorage):
         device="cpu",
         **kwargs):
 
+        self.training_type = training_type
         super().__init__(
-            training_type,
             num_envs,
             num_transitions_per_env,
             obs_shape,
             privileged_obs_shape,
             actions_shape,
             device=device,
-            **kwargs
         )
 
         self.x_t_path_shape = x_t_path_shape
